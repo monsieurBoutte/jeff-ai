@@ -13,9 +13,9 @@ function App() {
   const [name, setName] = useState('');
 
   useEffect(() => {
-    // always check for updates
+    // check for updates on startup
     checkForAppUpdates();
-  });
+  }, []);
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
