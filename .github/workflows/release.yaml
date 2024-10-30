@@ -28,7 +28,8 @@ jobs:
       - name: Create draft release
         uses: crabnebula-dev/cloud-release@v0
         with:
-          command: release draft ${{ env.CN_APP_SLUG }} ${{ env.TAG_NAME }} --framework tauri
+          tagName: ${{ github.ref_name }}
+          command: release draft ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
 
   build:
@@ -102,5 +103,6 @@ jobs:
       - name: publish release
         uses: crabnebula-dev/cloud-release@v0
         with:
-          command: release publish ${{ env.CN_APP_SLUG }} ${{ env.TAG_NAME }} --framework tauri
+          tagName: ${{ github.ref_name }}
+          command: release publish ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
