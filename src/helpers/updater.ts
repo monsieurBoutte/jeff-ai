@@ -9,7 +9,6 @@ export async function checkForAppUpdates() {
   if (update?.available) {
     const message = dedent`
     An update to ${update.version} is available!
-    Release notes: ${update.body}
   `;
 
     const yes = await ask(message, {
