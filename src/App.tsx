@@ -26,7 +26,7 @@ function App() {
       <main className="bg-white dark:bg-black p-4 flex flex-col gap-4 max-w-md mx-auto">
         <div className="flex flex-row justify-between items-center">
           <h1 className="text-4xl font-bold text-gray-800 dark:text-white">
-            Hello friend
+            Hello friend!
           </h1>
           <ModeToggle />
         </div>
