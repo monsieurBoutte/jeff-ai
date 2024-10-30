@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: ['main']
+    tags:
+      - 'v*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,10 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get the tag name
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Create draft release
         uses: crabnebula-dev/cloud-release@v0
         with:
-          command: release draft ${{ env.CN_APP_SLUG }}  --framework tauri
+          command: release draft ${{ env.CN_APP_SLUG }} --tag ${{ env.TAG_NAME }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
 
   build:
