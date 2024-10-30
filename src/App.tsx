@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -6,10 +6,15 @@ import './styles.css';
 import { ModeToggle } from './components/mode-toggle';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
+import { checkForAppUpdates } from './helpers/updater';
 
 function App() {
   const [greetMsg, setGreetMsg] = useState('');
   const [name, setName] = useState('');
+
+  useEffect(() => {
+    checkForAppUpdates();
+  }, []);
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
