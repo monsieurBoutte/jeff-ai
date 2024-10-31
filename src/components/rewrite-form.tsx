@@ -13,6 +13,8 @@ interface RewriteFormValues {
   messageToRewrite: string;
 }
 
+const REFINE_MESSAGE_DESCRIPTION = 'Refined message copied to clipboard';
+
 export const RewriteForm = () => {
   const [refinedMsg, setRefinedMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +35,7 @@ export const RewriteForm = () => {
       setRefinedMsg(response.suggested_message_rewrite);
       setIsLoading(false);
       toast({
-        description: 'Refined message copied to clipboard'
+        description: REFINE_MESSAGE_DESCRIPTION
       });
     },
     []
@@ -43,7 +45,7 @@ export const RewriteForm = () => {
     if (refinedMsg) {
       navigator.clipboard.writeText(refinedMsg);
       toast({
-        description: 'Refined message copied to clipboard'
+        description: REFINE_MESSAGE_DESCRIPTION
       });
     }
   }, [refinedMsg, toast]);
