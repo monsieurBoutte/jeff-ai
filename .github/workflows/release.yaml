@@ -13,6 +13,7 @@ concurrency:
 
 env:
   CN_APP_SLUG: monsieurboutte/jeff-ai
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
 jobs:
   draft:
@@ -24,12 +25,6 @@ jobs:
 
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Create .env file
-        run: |
-          touch .env
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
-          cat .env
 
       - name: Create draft release
         uses: crabnebula-dev/cloud-release@v0
@@ -59,12 +54,6 @@ jobs:
             target: x86_64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
-
-      - name: Create .env file
-        run: |
-          touch .env
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
-          cat .env
 
       - name: Install pnpm
         uses: pnpm/action-setup@v3
@@ -111,12 +100,6 @@ jobs:
 
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Create .env file
-        run: |
-          touch .env
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
-          cat .env
 
       - name: publish release
         uses: crabnebula-dev/cloud-release@v0
