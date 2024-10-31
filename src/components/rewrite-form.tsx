@@ -15,6 +15,7 @@ interface RewriteFormValues {
 
 export const RewriteForm = () => {
   const [refinedMsg, setRefinedMsg] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<RewriteFormValues>({
@@ -25,11 +26,12 @@ export const RewriteForm = () => {
 
   const handleRewriteSubmission = useCallback(
     async (values: RewriteFormValues) => {
-      setRefinedMsg('');
+      setIsLoading(true);
       const response = await invoke<RefineMessageResponse>('refine_message', {
         msg: values.messageToRewrite
       });
       setRefinedMsg(response.suggested_message_rewrite);
+      setIsLoading(false);
       toast({
         description: 'Refined message copied to clipboard'
       });
@@ -70,9 +72,9 @@ export const RewriteForm = () => {
         <Button
           type="submit"
           variant="outline"
-          disabled={!form.watch('messageToRewrite')}
+          disabled={!form.watch('messageToRewrite') || isLoading}
         >
-          Refine
+          {isLoading ? 'Refining...' : 'Refine'}
         </Button>
         <FormField
           control={form.control}
