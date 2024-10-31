@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
-use std::env;
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use dotenv::dotenv;
+use std::env;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -89,7 +90,7 @@ async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMes
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize dotenv before anything else
-    dotenv::dotenv().ok();
+    dotenv().ok();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
