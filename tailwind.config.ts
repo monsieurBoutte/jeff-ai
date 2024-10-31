@@ -3,6 +3,16 @@ export default {
   content: ['src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      keyframes: {
+        'recording-pulse': {
+          '0%, 100%': { borderColor: 'rgb(239 68 68)' }, // red-500
+          '50%': { borderColor: 'rgb(153 27 27)' } // red-800
+        }
+      },
+      animation: {
+        'recording-pulse':
+          'recording-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

@@ -1,40 +1,53 @@
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { ThemeProvider } from '@/components/theme-provider';
+import { useEffect } from 'react';
+import { useMachine } from '@xstate/react';
 
+import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/theme-provider';
+import { ModeToggle } from '@/components/mode-toggle';
+import { MicrophoneToggle } from '@/components/microphone-toggle';
+import { RewriteToggle } from '@/components/rewrite-toggle';
+import { RewriteForm } from '@/components/rewrite-form';
+import { checkForAppUpdates } from '@/helpers/updater';
+import { modeMachine } from '@/machines/mode-machine';
 import './styles.css';
-import { ModeToggle } from './components/mode-toggle';
-import { Input } from './components/ui/input';
-import { Button } from './components/ui/button';
-import { checkForAppUpdates } from './helpers/updater';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState('');
-  const [name, setName] = useState('');
+  const [state, send] = useMachine(modeMachine);
 
   useEffect(() => {
-    // check for updates on startup
     checkForAppUpdates();
   }, []);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke('greet', { name }));
-  }
+  const handleMicToggle = () => {
+    send({ type: 'TOGGLE_RECORDER' });
+  };
+
+  const handleRewriteToggle = () => {
+    send({ type: 'TOGGLE_REWRITE' });
+  };
 
   return (
     <ThemeProvider>
-      <main className="bg-white dark:bg-black p-4 flex flex-col gap-4 max-w-md mx-auto">
+      <main className="p-4 flex flex-col gap-4 max-w-md mx-auto">
         <div className="flex flex-row justify-between items-center">
           <h1 className="text-4xl font-bold text-gray-800 dark:text-white">
-            Hello friend
+            Jeff AI
           </h1>
-          <ModeToggle />
+          <div className="flex gap-2">
+            <RewriteToggle
+              isActive={state.matches('rewrite')}
+              onClick={handleRewriteToggle}
+            />
+            <MicrophoneToggle
+              isActive={state.matches('recorder')}
+              onClick={handleMicToggle}
+            />
+            <ModeToggle />
+          </div>
         </div>
-        <Input value={name} onChange={(e) => setName(e.target.value)} />
-        <Button onClick={greet}>Greet</Button>
-        {name && greetMsg && <p>{greetMsg}</p>}
+        {state.matches('rewrite') && <RewriteForm />}
       </main>
+      <Toaster />
     </ThemeProvider>
   );
 }

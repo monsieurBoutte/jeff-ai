@@ -9,6 +9,20 @@
     "process:default",
     "dialog:default",
     "notification:default",
-    "updater:default"
+    "updater:default",
+    "http:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://www.learnwithjason.dev/api/v2/schedule/"
+        },
+        {
+          "url": "https://api.groq.com/openai/v1/chat/completions/"
+        }
+      ]
+    },
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text"
   ]
 }

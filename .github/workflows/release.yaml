@@ -25,6 +25,10 @@ jobs:
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      - name: Create .env file
+        run: |
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
+
       - name: Create draft release
         uses: crabnebula-dev/cloud-release@v0
         with:
@@ -99,6 +103,10 @@ jobs:
 
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Create .env file
+        run: |
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
 
       - name: publish release
         uses: crabnebula-dev/cloud-release@v0
