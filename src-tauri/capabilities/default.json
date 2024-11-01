@@ -10,14 +10,18 @@
     "dialog:default",
     "notification:default",
     "updater:default",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install",
+    "updater:allow-download-and-install",
     {
       "identifier": "http:default",
       "allow": [
         {
-          "url": "https://www.learnwithjason.dev/api/v2/schedule/"
+          "url": "https://*.learnwithjason.dev/api/v2/*"
         },
         {
-          "url": "https://api.groq.com/openai/v1/chat/completions/"
+          "url": "https://*.api.groq.com/openai/v1/chat/completions/*"
         }
       ]
     },

@@ -112,6 +112,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
       - name: upload assets
         uses: crabnebula-dev/cloud-release@v0
