@@ -1,10 +1,11 @@
+#[cfg(debug_assertions)]
+use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
-use tauri_plugin_clipboard_manager::ClipboardExt;
 use std::env;
-#[cfg(debug_assertions)]
-use dotenv::dotenv;
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use log;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -19,8 +20,10 @@ struct RefinedMessage {
 
 #[tauri::command]
 async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMessage, String> {
-    let api_key = env::var("GROQ_API_KEY")
-        .map_err(|_| "GROQ_API_KEY not found in environment".to_string())?;
+    let api_key = env::var("GROQ_API_KEY").map_err(|e| {
+        log::error!("Failed to get GROQ_API_KEY: {}", e);
+        "GROQ_API_KEY not found in environment".to_string()
+    })?;
 
     // Construct the request body
     let body = json!({
@@ -66,22 +69,35 @@ async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMes
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log::error!("Failed to send request to Groq API: {}", e);
+            e.to_string()
+        })?;
 
     // Parse the response as JSON
-    let json_response = response.json::<Value>().await.map_err(|e| e.to_string())?;
+    let json_response = response.json::<Value>().await.map_err(|e| {
+        log::error!("Failed to parse Groq API response as JSON: {}", e);
+        e.to_string()
+    })?;
 
     // Extract the content string from the first choice
     let content = json_response["choices"][0]["message"]["content"]
         .as_str()
-        .ok_or("Failed to get message content")?;
+        .ok_or_else(|| {
+            log::error!("Failed to extract content from Groq API response: {:?}", json_response);
+            "Failed to get message content".to_string()
+        })?;
 
     // Parse the content string as JSON to get the suggested_message_rewrite
-    let content_json: RefinedMessage = serde_json::from_str(content).map_err(|e| e.to_string())?;
+    let content_json: RefinedMessage = serde_json::from_str(content).map_err(|e| {
+        log::error!("Failed to parse content as RefinedMessage: {}", e);
+        e.to_string()
+    })?;
 
     // write the refined message to the clipboard
-    app.clipboard().write_text(content_json.suggested_message_rewrite.clone()).unwrap();
-
+    if let Err(e) = app.clipboard().write_text(content_json.suggested_message_rewrite.clone()) {
+        log::error!("Failed to write to clipboard: {}", e);
+    }
 
     // Return the entire RefinedMessage struct
     Ok(content_json)
@@ -92,8 +108,22 @@ pub fn run() {
     #[cfg(debug_assertions)]
     dotenv().ok();
 
-    // Remove dotenv initialization
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                .format(|out, message, record| {
+                    out.finish(format_args!(
+                        "{}[{}][{}] {}",
+                        chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                        record.target(),
+                        record.level(),
+                        message
+                    ))
+                })
+                .build()
+        )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
