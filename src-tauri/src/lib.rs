@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use dotenv::dotenv;
 use std::env;
+#[cfg(debug_assertions)]
+use dotenv::dotenv;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -18,7 +19,6 @@ struct RefinedMessage {
 
 #[tauri::command]
 async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMessage, String> {
-    // Get API key from environment
     let api_key = env::var("GROQ_API_KEY")
         .map_err(|_| "GROQ_API_KEY not found in environment".to_string())?;
 
@@ -89,9 +89,10 @@ async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMes
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize dotenv before anything else
+    #[cfg(debug_assertions)]
     dotenv().ok();
 
+    // Remove dotenv initialization
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_http::init())
