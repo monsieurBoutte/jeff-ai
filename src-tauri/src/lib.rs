@@ -5,7 +5,6 @@ use serde_json::json;
 use serde_json::Value;
 use std::env;
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use log;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -84,13 +83,14 @@ async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMes
     let content = json_response["choices"][0]["message"]["content"]
         .as_str()
         .ok_or_else(|| {
-            log::error!("Failed to extract content from Groq API response: {:?}", json_response);
-            "Failed to get message content".to_string()
+            let err = "Failed to get message content from response";
+            log::error!("{}", err);
+            err.to_string()
         })?;
 
     // Parse the content string as JSON to get the suggested_message_rewrite
     let content_json: RefinedMessage = serde_json::from_str(content).map_err(|e| {
-        log::error!("Failed to parse content as RefinedMessage: {}", e);
+        log::error!("Failed to parse message content as RefinedMessage: {}", e);
         e.to_string()
     })?;
 
@@ -109,21 +109,7 @@ pub fn run() {
     dotenv().ok();
 
     tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
-                .format(|out, message, record| {
-                    out.finish(format_args!(
-                        "{}[{}][{}] {}",
-                        chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                        record.target(),
-                        record.level(),
-                        message
-                    ))
-                })
-                .build()
-        )
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
