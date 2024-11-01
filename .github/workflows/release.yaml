@@ -26,7 +26,12 @@ jobs:
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Debug secrets access
-        run: echo "Secret GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"
+        run: |
+          if [ -n "${{ secrets.GROQ_API_KEY }}" ]; then
+            echo "GROQ_API_KEY secret is set"
+          else
+            echo "GROQ_API_KEY secret is not set"
+          fi
 
       - name: Create .env.production file
         run: |
@@ -40,6 +45,14 @@ jobs:
           tagName: ${{ github.ref_name }}
           command: release draft ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
+
+      - name: Debug env file
+        run: |
+          if grep -q "GROQ_API_KEY=" .env.production; then
+            echo "GROQ_API_KEY was written to .env.production"
+          else
+            echo "GROQ_API_KEY is missing from .env.production"
+          fi
 
   build:
     needs: draft
