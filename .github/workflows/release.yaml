@@ -25,6 +25,9 @@ jobs:
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      - name: Debug secrets access
+        run: echo "Secret GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"
+
       - name: Create .env.production file
         run: |
           touch .env.production
