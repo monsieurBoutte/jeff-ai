@@ -8,6 +8,8 @@ import { RewriteToggle } from '@/components/rewrite-toggle';
 import { RewriteForm } from '@/components/rewrite-form';
 import { Button } from '@/components/ui/button';
 
+const windowOrigin = window.location.origin;
+
 export default function Home() {
   const [state, send] = useMachine(modeMachine);
 
@@ -26,6 +28,7 @@ export default function Home() {
 
   return (
     <div>
+      <p>{windowOrigin}</p>
       {!isLoading && !isAuthenticated && (
         <div className="flex gap-3 my-2">
           <Button variant="outline" onClick={() => login()} type="button">
