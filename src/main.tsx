@@ -1,11 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
-import { HydratedRouter } from 'react-router/dom';
+import App from './App';
 
-// todo: make sure we add the production URIs into kinde's application details within their portal
-ReactDOM.hydrateRoot(
-  document,
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <KindeAuth.KindeProvider
       clientId="98c15f1315d845e69890b864f3fb842e"
@@ -14,7 +12,7 @@ ReactDOM.hydrateRoot(
       redirectUri={window.location.origin}
       isDangerouslyUseLocalStorage={process.env.NODE_ENV === 'development'}
     >
-      <HydratedRouter />
+      <App />
     </KindeAuth.KindeProvider>
   </React.StrictMode>
 );

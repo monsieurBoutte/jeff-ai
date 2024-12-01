@@ -20,14 +20,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    "rootDirs": [".", "./.react-router/types"],
-
     /* Paths */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", ".react-router/types/**/*"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

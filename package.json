@@ -5,8 +5,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "react-router dev",
-    "routes:typecheck": "react-router typegen && tsc",
+    "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
@@ -22,7 +21,6 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.2",
     "@radix-ui/react-tooltip": "^1.1.4",
-    "@react-router/node": "^7.0.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-clipboard-manager": "^2.0.0",
     "@tauri-apps/plugin-dialog": "~2",
@@ -36,7 +34,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "dedent": "^1.5.3",
-    "isbot": "^5",
     "lucide-react": "^0.454.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -44,11 +41,11 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "ts-pattern": "^5.5.0",
+    "wouter": "^3.3.5",
     "xstate": "^5.18.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@react-router/dev": "^7.0.1",
     "@tauri-apps/cli": "^2",
     "@types/node": "^22.8.2",
     "@types/react": "^18.2.15",

@@ -2,7 +2,7 @@ import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import { useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
-export default function Component() {
+export default function Tasks() {
   const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
 
   const fetchTasks = useCallback(async () => {

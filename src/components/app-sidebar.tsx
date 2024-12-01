@@ -6,7 +6,7 @@ import {
   Settings,
   CassetteTape
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation } from 'wouter';
 import {
   Sidebar,
   SidebarContent,
@@ -54,7 +54,7 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const location = useLocation();
+  const [location] = useLocation();
 
   return (
     <Sidebar>
@@ -70,7 +70,7 @@ export function AppSidebar() {
                       to={item.url}
                       className={cn(
                         'hover:bg-gray-100 dark:hover:bg-gray-800/25',
-                        location.pathname === item.url &&
+                        location === item.url &&
                           'text-indigo-600 bg-gray-100 dark:bg-gray-800/25'
                       )}
                     >
