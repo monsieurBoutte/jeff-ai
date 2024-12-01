@@ -16,11 +16,7 @@ export async function clientLoader() {
   };
 }
 
-export default function Component({
-  loaderData
-}: {
-  loaderData?: Route.ComponentProps['loaderData'];
-}) {
+export default function Component() {
   const [state, send] = useMachine(modeMachine);
 
   const handleMicToggle = () => {
