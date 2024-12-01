@@ -121,7 +121,7 @@ async fn fetch_tasks(token: String) -> Result<Value, String> {
     let client = reqwest::Client::new();
 
     let response = client
-        .get("http://localhost:8787/api/tasks")
+        .get("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/tasks")
         .header("Authorization", format!("Bearer {}", token))
         .send()
         .await
