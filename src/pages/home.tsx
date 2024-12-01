@@ -8,14 +8,7 @@ import { RewriteToggle } from '@/components/rewrite-toggle';
 import { RewriteForm } from '@/components/rewrite-form';
 import { Button } from '@/components/ui/button';
 
-export async function clientLoader() {
-  return {
-    title: 'Home page',
-    age: 20
-  };
-}
-
-export default function Component() {
+export default function Home() {
   const [state, send] = useMachine(modeMachine);
 
   const handleMicToggle = () => {
