@@ -14,17 +14,14 @@ export async function handleNotifications() {
     const permission = await requestPermission();
 
     if (permission === 'granted') {
-      console.log('Permission granted');
       sendNotification({
         title: 'Hello from JS!',
         body: 'This is a notification from JS and Rust'
       });
     } else {
-      console.log('Permission denied');
+      // permission denied — noop
     }
   } else {
-    console.log('Already has permission.');
-    console.log('sending notification.');
     sendNotification({
       title: 'Hello from JavaScript!',
       body: 'This is a notification from JavaScript and Rust'

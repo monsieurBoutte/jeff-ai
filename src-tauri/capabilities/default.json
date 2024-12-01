@@ -2,9 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "shell:allow-open",
@@ -20,7 +18,13 @@
       "identifier": "http:default",
       "allow": [
         {
-          "url": "https://*.learnwithjason.dev/api/v2/*"
+          "url": "https://*.jeff-ai-cf-be.mrboutte21.workers.dev/*"
+        },
+        {
+          "url": "https://*.jeffai.kinde.com/*"
+        },
+        {
+          "url": "https://jeffai.kinde.com/oauth2/token"
         },
         {
           "url": "https://*.api.groq.com/openai/v1/chat/completions/*"

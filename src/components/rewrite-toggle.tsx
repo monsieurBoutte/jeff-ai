@@ -1,4 +1,4 @@
-import { BookOpenCheck } from 'lucide-react';
+import { PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ export function RewriteToggle({ isActive, onClick }: RewriteToggleProps) {
         isActive && 'border-green-500 bg-green-50 dark:hover:bg-green-950'
       )}
     >
-      <BookOpenCheck
+      <PenLine
         className="h-[1.2rem] w-[1.2rem]"
         color={isActive ? 'green' : 'currentColor'}
       />

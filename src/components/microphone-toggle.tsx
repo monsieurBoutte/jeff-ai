@@ -1,4 +1,4 @@
-import { AudioLines } from 'lucide-react';
+import { Voicemail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
           'border-red-500 animate-recording-pulse bg-red-50 dark:hover:bg-red-950'
       )}
     >
-      <AudioLines
+      <Voicemail
         className="h-[1.2rem] w-[1.2rem]"
         color={isActive ? 'red' : 'currentColor'}
       />

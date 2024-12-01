@@ -17,6 +17,19 @@ struct RefinedMessage {
     suggested_message_rewrite: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Task {
+    id: i32,
+    name: String,
+    done: bool,
+    #[serde(rename = "userId")]
+    user_id: String,
+    #[serde(rename = "createdAt")]
+    created_at: String,
+    #[serde(rename = "updatedAt")]
+    updated_at: String,
+}
+
 #[tauri::command]
 async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMessage, String> {
     let api_key = env::var("GROQ_API_KEY").map_err(|e| {
@@ -103,6 +116,30 @@ async fn refine_message(app: tauri::AppHandle, msg: String) -> Result<RefinedMes
     Ok(content_json)
 }
 
+#[tauri::command]
+async fn fetch_tasks(token: String) -> Result<Value, String> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get("http://localhost:8787/api/tasks")
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch tasks: {}", e);
+            e.to_string()
+        })?;
+
+    // Get the raw JSON value
+    let json_value = response.json::<Value>().await.map_err(|e| {
+        log::error!("Failed to parse response as JSON: {}", e);
+        e.to_string()
+    })?;
+
+    log::info!("Raw API response: {:?}", json_value);
+    Ok(json_value)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
@@ -125,7 +162,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet, refine_message])
+        .invoke_handler(tauri::generate_handler![greet, refine_message, fetch_tasks])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
