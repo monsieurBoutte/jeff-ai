@@ -1,4 +1,6 @@
+import { useEffect, useCallback } from 'react';
 import { useMachine } from '@xstate/react';
+import { invoke } from '@tauri-apps/api/core';
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 
 import { modeMachine } from '@/machines/mode-machine';
@@ -19,10 +21,23 @@ export default function Home() {
     send({ type: 'TOGGLE_REWRITE' });
   };
 
-  const { isAuthenticated, login, logout, isLoading, register, user } =
+  const { isAuthenticated, login, logout, isLoading, register, getToken } =
     KindeAuth.useKindeAuth();
 
-  console.log('user', user);
+  const captureUser = useCallback(async () => {
+    if (!isAuthenticated || !getToken) {
+      return;
+    }
+    const token = await getToken();
+
+    await invoke('capture_user', {
+      token
+    });
+  }, [getToken, isAuthenticated]);
+
+  useEffect(() => {
+    captureUser();
+  }, [captureUser]);
 
   return (
     <div>

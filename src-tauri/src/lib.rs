@@ -5,11 +5,26 @@ use serde_json::json;
 use serde_json::Value;
 use std::env;
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use std::sync::Mutex;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct User {
+    id: String,
+    email: String,
+    family_name: String,
+    given_name: String,
+}
+
+struct AppState {
+    user: Mutex<Option<User>>,
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+async fn set_user(state: tauri::State<'_, AppState>, user_data: User) -> Result<(), String> {
+    let mut user = state.user.lock().map_err(|e| e.to_string())?;
+    *user = Some(user_data);
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -140,12 +155,59 @@ async fn fetch_tasks(token: String) -> Result<Value, String> {
     Ok(json_value)
 }
 
+#[tauri::command]
+async fn capture_user(token: String, state: tauri::State<'_, AppState>) -> Result<Value, String> {
+    let client = reqwest::Client::new();
+    // Get user_id and drop the lock immediately
+    let user_data = {
+        let current_user = state.user.lock().map_err(|e| e.to_string())?;
+        current_user.as_ref()
+            .map(|u| (u.id.clone(), u.email.clone(), format!("{} {}", u.given_name, u.family_name)))
+            .ok_or_else(|| "No user found in state".to_string())?
+    };
+
+    let response = client
+        .post("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/capture")
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "authUserId": user_data.0,
+            "email": user_data.1,
+            "displayName": user_data.2
+        }))
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to create capture: {}", e);
+            e.to_string()
+        })?;
+
+    // Check status code
+    let status = response.status();
+    let json_value = response.json::<Value>().await.map_err(|e| {
+        log::error!("Failed to parse response as JSON: {}", e);
+        e.to_string()
+    })?;
+
+    log::info!("user in state: {:?}", state.user);
+    log::info!("status: {:?}", status);
+
+    log::info!("Raw API response: {:?}", json_value);
+    Ok(json_value)
+
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
     dotenv().ok();
 
+    let app_state = AppState {
+        user: Mutex::new(None),
+    };
+
     tauri::Builder::default()
+        .manage(app_state)
         .plugin(
             tauri_plugin_log::Builder::new()
                 .target(tauri_plugin_log::Target::new(
@@ -162,7 +224,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet, refine_message, fetch_tasks])
+        .invoke_handler(tauri::generate_handler![refine_message, fetch_tasks, capture_user, set_user])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
