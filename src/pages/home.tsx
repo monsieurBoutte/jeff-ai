@@ -12,14 +12,20 @@ import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const [state, send] = useMachine(modeMachine);
+  console.log('state', state.value);
 
-  const handleMicToggle = () => {
+  const handleMicToggle = useCallback(() => {
     send({ type: 'TOGGLE_RECORDER' });
-  };
+    if (state.matches('recorder')) {
+      invoke('stop_recording');
+    } else {
+      invoke('start_recording');
+    }
+  }, [send, state]);
 
-  const handleRewriteToggle = () => {
+  const handleRewriteToggle = useCallback(() => {
     send({ type: 'TOGGLE_REWRITE' });
-  };
+  }, [send]);
 
   const { isAuthenticated, login, logout, isLoading, register, getToken } =
     KindeAuth.useKindeAuth();

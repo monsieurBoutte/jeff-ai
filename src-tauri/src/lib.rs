@@ -6,6 +6,9 @@ use serde_json::Value;
 use std::env;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use std::sync::Mutex;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct User {
@@ -17,6 +20,7 @@ struct User {
 
 struct AppState {
     user: Mutex<Option<User>>,
+    is_recording: Arc<AtomicBool>,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -197,6 +201,68 @@ async fn capture_user(token: String, state: tauri::State<'_, AppState>) -> Resul
 
 }
 
+#[tauri::command]
+async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    log::info!("Starting recording");
+    let host = cpal::default_host();
+
+    // Get the default input device
+    let device = host.default_input_device()
+        .ok_or_else(|| "No input device available".to_string())?;
+
+    log::info!("Using default input device: {}", device.name().map_err(|e| e.to_string())?);
+
+    // Get the default config for the input device
+    let config = device.default_input_config()
+        .map_err(|e| e.to_string())?;
+
+    log::info!("Default input config: {:?}", config);
+
+    // Set up the recording flag
+    state.is_recording.store(true, Ordering::SeqCst);
+    let recording_flag = Arc::clone(&state.is_recording);
+
+    log::info!("Creating input stream...");
+    log::info!("Recording flag: {:?}", recording_flag);
+
+    // Create an input stream
+    let stream = device.build_input_stream(
+        &config.into(),
+        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            log::info!("Received audio data, buffer size: {}", data.len());
+            // Only process audio data if we're still recording
+            if recording_flag.load(Ordering::SeqCst) {
+                if let Some(&max_sample) = data.iter().max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)) {
+                    log::info!("Max amplitude: {} (buffer size: {})", max_sample, data.len());
+                } else {
+                    log::warn!("No audio data in buffer");
+                }
+            }
+        },
+        move |err| {
+            log::error!("Error in audio stream: {}", err);
+        },
+        None
+    ).map_err(|e| e.to_string())?;
+
+    log::info!("Stream created, attempting to play...");
+
+    // Start the stream
+    stream.play().map_err(|e| e.to_string())?;
+
+    log::info!("Stream started successfully");
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    log::info!("Stopping recording");
+    state.is_recording.store(false, Ordering::SeqCst);
+    log::info!("Recording flag: {:?}", state.is_recording);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
@@ -204,6 +270,7 @@ pub fn run() {
 
     let app_state = AppState {
         user: Mutex::new(None),
+        is_recording: Arc::new(AtomicBool::new(false)),
     };
 
     tauri::Builder::default()
@@ -224,7 +291,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![refine_message, fetch_tasks, capture_user, set_user])
+        .invoke_handler(tauri::generate_handler![
+            refine_message,
+            fetch_tasks,
+            capture_user,
+            set_user,
+            start_recording,
+            stop_recording
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
