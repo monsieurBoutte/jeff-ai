@@ -9,6 +9,12 @@ use std::sync::Mutex;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::mpsc::{channel, Sender};
+use hound::{WavSpec, WavWriter};
+use std::fs::File;
+use std::io::BufWriter;
+use chrono::Local;
+use dirs;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct User {
@@ -18,9 +24,51 @@ struct User {
     given_name: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RecordingState {
+    Stopped,
+    Recording,
+    Paused,
+}
+
 struct AppState {
     user: Mutex<Option<User>>,
+    recording_state: Mutex<RecordingState>,
     is_recording: Arc<AtomicBool>,
+    audio_writer: Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>,
+    recording_sender: Arc<Mutex<Option<Sender<RecordingMessage>>>>,
+}
+
+// Add message enum for recording control
+#[derive(Debug)]
+enum RecordingMessage {
+    Stop,
+    Pause,
+    Resume,
+}
+
+// Helper function to get WAV spec from CPAL config
+fn wav_spec_from_config(config: &cpal::SupportedStreamConfig) -> WavSpec {
+    WavSpec {
+        channels: config.channels() as u16,
+        sample_rate: config.sample_rate().0,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    }
+}
+
+// Helper function to write input data
+fn write_input_data<T>(input: &[T], writer: &Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>)
+where
+    T: cpal::Sample + hound::Sample,
+{
+    if let Ok(mut guard) = writer.lock() {
+        if let Some(writer) = guard.as_mut() {
+            for &sample in input.iter() {
+                writer.write_sample(sample).unwrap();
+            }
+        }
+    }
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -203,57 +251,110 @@ async fn capture_user(token: String, state: tauri::State<'_, AppState>) -> Resul
 
 #[tauri::command]
 async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    log::info!("Starting recording");
-    let host = cpal::default_host();
+    let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
 
-    // Get the default input device
-    let device = host.default_input_device()
-        .ok_or_else(|| "No input device available".to_string())?;
+    match *recording_state {
+        RecordingState::Stopped => {
+            *recording_state = RecordingState::Recording;
 
-    log::info!("Using default input device: {}", device.name().map_err(|e| e.to_string())?);
+            // Rest of your existing recording logic...
+            log::info!("Starting recording");
 
-    // Get the default config for the input device
-    let config = device.default_input_config()
-        .map_err(|e| e.to_string())?;
+            // Get desktop directory and create output path
+            let desktop_dir = dirs::desktop_dir()
+                .ok_or_else(|| "Could not find desktop directory".to_string())?;
 
-    log::info!("Default input config: {:?}", config);
+            // Create a timestamp for the filename
+            let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+            let output_path = desktop_dir.join(format!("recording_{}.wav", timestamp));
 
-    // Set up the recording flag
-    state.is_recording.store(true, Ordering::SeqCst);
-    let recording_flag = Arc::clone(&state.is_recording);
+            log::info!("Recording to: {:?}", output_path);
 
-    // Create an input stream
-    let stream = device.build_input_stream(
-        &config.into(),
-        move |data: &[f32], _| {
-            if recording_flag.load(Ordering::SeqCst) {
-                log::info!("Captured {} samples from mic", data.len());
-                if !data.is_empty() {
-                    let sum: f32 = data.iter().copied().sum();
-                    log::debug!("Sum of chunk: {}", sum);
+            let host = cpal::default_host();
+            let device = host.default_input_device()
+                .ok_or_else(|| "No input device available".to_string())?;
+
+            let config = device.default_input_config()
+                .map_err(|e| e.to_string())?;
+
+            // Create WAV writer
+            let spec = wav_spec_from_config(&config);
+            let writer = WavWriter::create(&output_path, spec)
+                .map_err(|e| e.to_string())?;
+
+            let writer = Arc::new(Mutex::new(Some(writer)));
+            let writer_clone = Arc::clone(&writer);
+
+            // Set up communication channel
+            let (sender, receiver) = channel();
+            *state.recording_sender.lock().map_err(|e| e.to_string())? = Some(sender);
+
+            // Store writer in state
+            *state.audio_writer.lock().map_err(|e| e.to_string())? = Some(writer.lock().unwrap().take().unwrap());
+
+            // Set recording flag
+            state.is_recording.store(true, Ordering::SeqCst);
+            let recording_flag = Arc::clone(&state.is_recording);
+
+            // Spawn recording thread
+            std::thread::spawn(move || {
+                let stream = device.build_input_stream(
+                    &config.into(),
+                    move |data: &[f32], _| {
+                        if recording_flag.load(Ordering::SeqCst) {
+                            write_input_data(data, &writer_clone);
+                        }
+                    },
+                    move |err| {
+                        log::error!("Error in audio stream: {}", err);
+                    },
+                    None
+                ).unwrap();
+
+                stream.play().unwrap();
+
+                // Handle control messages
+                while let Ok(msg) = receiver.recv() {
+                    match msg {
+                        RecordingMessage::Stop => break,
+                        RecordingMessage::Pause => { let _ = stream.pause(); },
+                        RecordingMessage::Resume => { let _ = stream.play(); },
+                    }
                 }
-                // Here you can add code to process or store the audio data
-            }
-        },
-        move |err| {
-            log::error!("Error in audio stream: {}", err);
-        },
-        None
-    ).map_err(|e| e.to_string())?;
+            });
 
-    log::info!("Stream created, attempting to play...");
-    stream.play().map_err(|e| e.to_string())?;
-    log::info!("Stream started successfully");
-
-    Ok(())
+            Ok(())
+        }
+        _ => Err("Recording already in progress".to_string())
+    }
 }
 
 #[tauri::command]
 async fn stop_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    log::info!("Stopping recording");
-    state.is_recording.store(false, Ordering::SeqCst);
-    log::info!("Recording flag: {:?}", state.is_recording);
-    Ok(())
+    let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
+
+    match *recording_state {
+        RecordingState::Recording | RecordingState::Paused => {
+            *recording_state = RecordingState::Stopped;
+
+            // Rest of your existing stop logic...
+            log::info!("Stopping recording");
+            state.is_recording.store(false, Ordering::SeqCst);
+
+            // Send stop message
+            if let Some(sender) = state.recording_sender.lock().map_err(|e| e.to_string())?.as_ref() {
+                sender.send(RecordingMessage::Stop).map_err(|e| e.to_string())?;
+            }
+
+            // Finalize WAV file
+            if let Some(writer) = state.audio_writer.lock().map_err(|e| e.to_string())?.take() {
+                writer.finalize().map_err(|e| e.to_string())?;
+            }
+
+            Ok(())
+        }
+        RecordingState::Stopped => Err("Recording not started".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -263,7 +364,10 @@ pub fn run() {
 
     let app_state = AppState {
         user: Mutex::new(None),
+        recording_state: Mutex::new(RecordingState::Stopped),
         is_recording: Arc::new(AtomicBool::new(false)),
+        audio_writer: Arc::new(Mutex::new(None)),
+        recording_sender: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()

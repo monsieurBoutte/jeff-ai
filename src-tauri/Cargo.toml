@@ -35,6 +35,8 @@ cpal = "0.15.3"
 deepgram = "0.6.4"
 tokio = { version = "1.42.0", features = ["full"] }
 hound = "3.5.1"
+dirs = "5.0.1"
+chrono = "0.4"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
