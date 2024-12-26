@@ -28,6 +28,12 @@
         },
         {
           "url": "https://*.api.groq.com/openai/v1/chat/completions/*"
+        },
+        {
+          "url": "wss://*.deepgram.com/*"
+        },
+        {
+          "url": "https://*.deepgram.com/*"
         }
       ]
     },

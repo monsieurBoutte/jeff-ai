@@ -9,12 +9,6 @@ use std::sync::Mutex;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use deepgram::{
-    Deepgram,
-    common::options::{Encoding, Options},
-    common::stream_response::StreamResponse,
-};
-use tokio::sync::mpsc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct User {
@@ -27,7 +21,6 @@ struct User {
 struct AppState {
     user: Mutex<Option<User>>,
     is_recording: Arc<AtomicBool>,
-    audio_sender: Mutex<Option<mpsc::Sender<Vec<f32>>>>,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -229,94 +222,17 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
     state.is_recording.store(true, Ordering::SeqCst);
     let recording_flag = Arc::clone(&state.is_recording);
 
-    // Create channel for audio data
-    let (tx, mut rx) = mpsc::channel::<Vec<f32>>(1024);
-    *state.audio_sender.lock().map_err(|e| e.to_string())? = Some(tx.clone());
-
-    // Set up Deepgram client
-    // let api_key = env::var("DEEPGRAM_API_KEY").map_err(|e| {
-    //     log::error!("Failed to get DEEPGRAM_API_KEY: {}", e);
-    //     e.to_string()
-    // })?;
-
-    let dg = Deepgram::new("57851d87f568a11263a1a48e46f0b4a358ac44b2").map_err(|e| e.to_string())?;
-
-    // Clone for tokio task
-    let recording_flag_task = Arc::clone(&recording_flag);
-
-    // Spawn transcription task
-    tokio::spawn(async move {
-        let options = Options::builder()
-            .smart_format(true)
-            .build();
-
-        let mut stream = match dg.transcription()
-            .stream_request_with_options(options)
-            .encoding(Encoding::Linear16)
-            .sample_rate(44100)
-            .channels(1)
-            .handle()
-            .await {
-                Ok(s) => s,
-                Err(e) => {
-                    log::error!("Failed to build stream: {}", e);
-                    return;
-                }
-            };
-
-        while let Some(audio_chunk) = rx.recv().await {
-            if !recording_flag_task.load(Ordering::SeqCst) {
-                break;
-            }
-
-            let audio_data: Vec<i16> = audio_chunk
-                .iter()
-                .map(|&x| (x * 32767.0) as i16)
-                .collect();
-
-            // Convert i16 samples to bytes
-            let audio_bytes: Vec<u8> = audio_data.iter()
-                .flat_map(|&sample| sample.to_le_bytes())
-                .collect();
-
-            if let Err(e) = stream.send_data(audio_bytes).await {
-                log::error!("Error sending audio: {}", e);
-                break;
-            }
-
-            while let Some(result) = stream.receive().await {
-                match result {
-                    Ok(response) => {
-                        match response {
-                            StreamResponse::SpeechStartedResponse { type_field, channel, timestamp } => {
-                                log::info!("Speech started: {:?}", timestamp);
-                            }
-                            StreamResponse::TranscriptResponse { channel, .. } => {
-                                if let Some(alt) = channel.alternatives.first() {
-                                    log::info!("Transcript: {}", alt.transcript);
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    Err(e) => log::error!("Transcription error: {}", e),
-                }
-            }
-        }
-    });
-
-    // Clone for input stream
-    let recording_flag_stream = Arc::clone(&recording_flag);
-
-    // Create an input stream with cloned values
+    // Create an input stream
     let stream = device.build_input_stream(
         &config.into(),
         move |data: &[f32], _| {
-            if recording_flag_stream.load(Ordering::SeqCst) {
-                let audio_data = data.to_vec();
-                if let Err(e) = tx.try_send(audio_data) {
-                    log::error!("Error sending audio data: {}", e);
+            if recording_flag.load(Ordering::SeqCst) {
+                log::info!("Captured {} samples from mic", data.len());
+                if !data.is_empty() {
+                    let sum: f32 = data.iter().copied().sum();
+                    log::debug!("Sum of chunk: {}", sum);
                 }
+                // Here you can add code to process or store the audio data
             }
         },
         move |err| {
@@ -348,7 +264,6 @@ pub fn run() {
     let app_state = AppState {
         user: Mutex::new(None),
         is_recording: Arc::new(AtomicBool::new(false)),
-        audio_sender: Mutex::new(None),
     };
 
     tauri::Builder::default()
