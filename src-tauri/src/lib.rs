@@ -35,8 +35,8 @@ struct AppState {
     user: Mutex<Option<User>>,
     recording_state: Mutex<RecordingState>,
     is_recording: Arc<AtomicBool>,
-    audio_writer: Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>,
-    recording_sender: Arc<Mutex<Option<Sender<RecordingMessage>>>>,
+    audio_writer: Mutex<Option<Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>>>,
+    recording_sender: Arc<Mutex<Option<Sender<()>>>>,
 }
 
 // Add message enum for recording control
@@ -52,21 +52,28 @@ fn wav_spec_from_config(config: &cpal::SupportedStreamConfig) -> WavSpec {
     WavSpec {
         channels: config.channels() as u16,
         sample_rate: config.sample_rate().0,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
     }
 }
 
 // Helper function to write input data
-fn write_input_data<T>(input: &[T], writer: &Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>)
-where
-    T: cpal::Sample + hound::Sample,
+fn write_input_data(input: &[f32], writer: &Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>)
 {
-    if let Ok(mut guard) = writer.lock() {
-        if let Some(writer) = guard.as_mut() {
-            for &sample in input.iter() {
-                writer.write_sample(sample).unwrap();
+    match writer.lock() {
+        Ok(mut guard) => {
+            if let Some(writer) = guard.as_mut() {
+                log::info!("Writing {} samples to WAV file", input.len());
+                for &sample in input.iter() {
+                   let converted_sample = (sample * i16::MAX as f32) as i16;
+                   writer.write_sample(converted_sample).unwrap();
+                }
+            } else {
+                log::error!("WAV writer is not available");
             }
+        }
+        Err(e) => {
+            log::error!("Failed to acquire lock on WAV writer: {}", e);
         }
     }
 }
@@ -290,7 +297,7 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
             *state.recording_sender.lock().map_err(|e| e.to_string())? = Some(sender);
 
             // Store writer in state
-            *state.audio_writer.lock().map_err(|e| e.to_string())? = Some(writer.lock().unwrap().take().unwrap());
+            *state.audio_writer.lock().map_err(|e| e.to_string())? = Some(Arc::clone(&writer));
 
             // Set recording flag
             state.is_recording.store(true, Ordering::SeqCst);
@@ -302,6 +309,10 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
                     &config.into(),
                     move |data: &[f32], _| {
                         if recording_flag.load(Ordering::SeqCst) {
+                            log::info!("Audio data received: {} samples", data.len());
+                            if data.len() > 0 {
+                                log::info!("First sample: {}", data[0]);
+                            }
                             write_input_data(data, &writer_clone);
                         }
                     },
@@ -314,12 +325,20 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
                 stream.play().unwrap();
 
                 // Handle control messages
-                while let Ok(msg) = receiver.recv() {
-                    match msg {
-                        RecordingMessage::Stop => break,
-                        RecordingMessage::Pause => { let _ = stream.pause(); },
-                        RecordingMessage::Resume => { let _ = stream.play(); },
+                while receiver.recv().is_ok() {
+                    // Keep the stream alive
+                }
+
+                // Finalize the writer
+                if let Ok(mut writer_guard) = writer.lock() {
+                    if let Some(writer) = writer_guard.take() {
+                        log::info!("Finalizing WAV writer");
+                        writer.finalize().unwrap();
+                    } else {
+                        log::error!("WAV writer is not available for finalization");
                     }
+                } else {
+                    log::error!("Failed to acquire lock on WAV writer for finalization");
                 }
             });
 
@@ -343,13 +362,12 @@ async fn stop_recording(state: tauri::State<'_, AppState>) -> Result<(), String>
 
             // Send stop message
             if let Some(sender) = state.recording_sender.lock().map_err(|e| e.to_string())?.as_ref() {
-                sender.send(RecordingMessage::Stop).map_err(|e| e.to_string())?;
+                sender.send(()).map_err(|e| e.to_string())?;
             }
 
             // Finalize WAV file
-            if let Some(writer) = state.audio_writer.lock().map_err(|e| e.to_string())?.take() {
-                writer.finalize().map_err(|e| e.to_string())?;
-            }
+            // The writer is finalized in the recording thread
+            // We don't need to do anything here
 
             Ok(())
         }
@@ -366,7 +384,7 @@ pub fn run() {
         user: Mutex::new(None),
         recording_state: Mutex::new(RecordingState::Stopped),
         is_recording: Arc::new(AtomicBool::new(false)),
-        audio_writer: Arc::new(Mutex::new(None)),
+        audio_writer: Mutex::new(None),
         recording_sender: Arc::new(Mutex::new(None)),
     };
 
