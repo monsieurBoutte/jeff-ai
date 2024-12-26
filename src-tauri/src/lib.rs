@@ -305,10 +305,11 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
 
             // Spawn recording thread
             std::thread::spawn(move || {
+                let recording_flag_stream = Arc::clone(&recording_flag);
                 let stream = device.build_input_stream(
                     &config.into(),
                     move |data: &[f32], _| {
-                        if recording_flag.load(Ordering::SeqCst) {
+                        if recording_flag_stream.load(Ordering::SeqCst) {
                             log::info!("Audio data received: {} samples", data.len());
                             if data.len() > 0 {
                                 log::info!("First sample: {}", data[0]);
@@ -325,7 +326,10 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
                 stream.play().unwrap();
 
                 // Handle control messages
-                while receiver.recv().is_ok() {
+                while recording_flag.load(Ordering::SeqCst) {
+                    if receiver.recv().is_err() {
+                        break;
+                    }
                     // Keep the stream alive
                 }
 
