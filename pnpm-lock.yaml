@@ -62,6 +62,63 @@ dependencies:
   '@tauri-apps/plugin-updater':
     specifier: ~2
     version: 2.0.0
+  '@tiptap/extension-blockquote':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-bold':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-bullet-list':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-code':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-code-block':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4)
+  '@tiptap/extension-color':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)(@tiptap/extension-text-style@2.10.4)
+  '@tiptap/extension-document':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-hard-break':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-heading':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-highlight':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-history':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4)
+  '@tiptap/extension-italic':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-list-item':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-ordered-list':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-paragraph':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-placeholder':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4)
+  '@tiptap/extension-strike':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-text':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-text-style':
+    specifier: ^2.10.4
+    version: 2.10.4(@tiptap/core@2.10.4)
   '@tiptap/pm':
     specifier: ^2.10.4
     version: 2.10.4
@@ -86,6 +143,9 @@ dependencies:
   lucide-react:
     specifier: ^0.454.0
     version: 0.454.0(react@18.3.1)
+  motion:
+    specifier: ^11.15.0
+    version: 11.15.0(react-dom@18.3.1)(react@18.3.1)
   react:
     specifier: ^18.2.0
     version: 18.3.1
@@ -1640,6 +1700,16 @@ packages:
       '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
     dev: false
 
+  /@tiptap/extension-color@2.10.4(@tiptap/core@2.10.4)(@tiptap/extension-text-style@2.10.4):
+    resolution: {integrity: sha512-LgYECcWnTfonqzTUJQN+ujNlWQahGg4G6typRR44opNxwGTlmXHjc6h/JwgLiYxSMZke3EDP/17BSQDH9MMrIA==}
+    peerDependencies:
+      '@tiptap/core': ^2.7.0
+      '@tiptap/extension-text-style': ^2.7.0
+    dependencies:
+      '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
+      '@tiptap/extension-text-style': 2.10.4(@tiptap/core@2.10.4)
+    dev: false
+
   /@tiptap/extension-document@2.10.4(@tiptap/core@2.10.4):
     resolution: {integrity: sha512-1Pqrl6Rr9bVEHJ3zO2dM7UUA0Qn/r70JQ9YLlestjW1sbMaMuY3Ifvu2uSyUE7SAGV3gvxwNVQCrv8f0VlVEaA==}
     peerDependencies:
@@ -1689,6 +1759,14 @@ packages:
 
   /@tiptap/extension-heading@2.10.4(@tiptap/core@2.10.4):
     resolution: {integrity: sha512-7D0h0MIvE97Gx3Qwuo2xnPDK07WfCnyh4tpOPBOus4e1g6sgxVkwDwhbkYWiwvIrf4BUVJflnke/DEDCVp6/Eg==}
+    peerDependencies:
+      '@tiptap/core': ^2.7.0
+    dependencies:
+      '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
+    dev: false
+
+  /@tiptap/extension-highlight@2.10.4(@tiptap/core@2.10.4):
+    resolution: {integrity: sha512-0E/eK+eKx7I7UotELKPFsL/jiWFVtAkyXvcs1+OzcCr8ao2M6t5hGKh0McBG4WUQdxttnIwfQemGzIHU25pDog==}
     peerDependencies:
       '@tiptap/core': ^2.7.0
     dependencies:
@@ -1745,6 +1823,16 @@ packages:
       '@tiptap/core': ^2.7.0
     dependencies:
       '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
+    dev: false
+
+  /@tiptap/extension-placeholder@2.10.4(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4):
+    resolution: {integrity: sha512-leWG4xP7cvddR6alGZS7yojOh9941bxehgAeQDLlEisaJcNa2Od5Vbap2zipjc5sXMxZakQVChL27oH1wWhHkQ==}
+    peerDependencies:
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
+    dependencies:
+      '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
+      '@tiptap/pm': 2.10.4
     dev: false
 
   /@tiptap/extension-strike@2.10.4(@tiptap/core@2.10.4):
@@ -2227,6 +2315,27 @@ packages:
     resolution: {integrity: sha512-ZsDfxO51wGAXREY55a7la9LScWpwv9RxIrYABrlvOFBlH/ShPnrtsXeuUIfXKKOVicNxQ+o8JTbJvjS4M89yew==}
     dev: true
 
+  /framer-motion@11.15.0(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-MLk8IvZntxOMg7lDBLw2qgTHHv664bYoYmnFTmE0Gm/FW67aOJk0WM3ctMcG+Xhcv+vh5uyyXwxvxhSeJzSe+w==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+    dependencies:
+      motion-dom: 11.14.3
+      motion-utils: 11.14.3
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tslib: 2.8.1
+    dev: false
+
   /fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -2431,6 +2540,34 @@ packages:
 
   /mitt@3.0.1:
     resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+    dev: false
+
+  /motion-dom@11.14.3:
+    resolution: {integrity: sha512-lW+D2wBy5vxLJi6aCP0xyxTxlTfiu+b+zcpVbGVFUxotwThqhdpPRSmX8xztAgtZMPMeU0WGVn/k1w4I+TbPqA==}
+    dev: false
+
+  /motion-utils@11.14.3:
+    resolution: {integrity: sha512-Xg+8xnqIJTpr0L/cidfTTBFkvRw26ZtGGuIhA94J9PQ2p4mEa06Xx7QVYZH0BP+EpMSaDlu+q0I0mmvwADPsaQ==}
+    dev: false
+
+  /motion@11.15.0(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-iZ7dwADQJWGsqsSkBhNHdI2LyYWU+hA1Nhy357wCLZq1yHxGImgt3l7Yv0HT/WOskcYDq9nxdedyl4zUv7UFFw==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+    dependencies:
+      framer-motion: 11.15.0(react-dom@18.3.1)(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tslib: 2.8.1
     dev: false
 
   /ms@2.1.3:

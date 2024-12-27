@@ -37,14 +37,16 @@ function App() {
   return (
     <ThemeProvider>
       <SidebarProvider>
-        <AppSidebar />
-        <main className="p-2 flex flex-col">
-          <SidebarTrigger />
-          <section className="flex-1 mt-1">
-            <Router />
-          </section>
-          <Toaster />
-        </main>
+        <div className="flex h-screen w-full overflow-hidden">
+          <AppSidebar />
+          <main className="flex-1 flex flex-col w-full min-w-0">
+            <SidebarTrigger />
+            <section className="flex-1 w-full p-2 overflow-auto">
+              <Router />
+            </section>
+            <Toaster />
+          </main>
+        </div>
       </SidebarProvider>
     </ThemeProvider>
   );

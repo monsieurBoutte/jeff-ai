@@ -11,7 +11,7 @@ export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
   return (
     <Button
       variant="outline"
-      size="icon"
+      size="sm"
       onClick={onClick}
       className={cn(
         'transition-colors',
@@ -23,7 +23,9 @@ export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
         className="h-[1.2rem] w-[1.2rem]"
         color={isActive ? 'red' : 'currentColor'}
       />
-      <span className="sr-only">Toggle microphone</span>
+      <span className={cn(isActive && 'text-red-600')}>
+        {isActive ? 'Stop recording' : 'Use Speech to Text'}
+      </span>
     </Button>
   );
 }
