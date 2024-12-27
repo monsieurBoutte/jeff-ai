@@ -8,6 +8,7 @@ import { modeMachine } from '@/machines/mode-machine';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
 import { RewriteToggle } from '@/components/rewrite-toggle';
 import { RewriteForm } from '@/components/rewrite-form';
+import { DocumentEditor } from '@/components/document-editor';
 
 interface TranscriptionEvent {
   payload: string;
@@ -77,7 +78,7 @@ export default function Home() {
   }, [captureUser]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col h-full gap-4">
       <div className="flex flex-row justify-between items-center">
         <div className="flex gap-2">
           <RewriteToggle
@@ -90,7 +91,10 @@ export default function Home() {
           />
         </div>
       </div>
-      {state.matches('rewrite') && <RewriteForm />}
+      <div className="w-full bg-slate-300">
+        <DocumentEditor />
+        {/* {state.matches('rewrite') && <RewriteForm />} */}
+      </div>
       {transcriptions.length > 0 && (
         <div className="backdrop-blur-sm bg-white/10 dark:bg-black/10 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
           <div className="flex flex-col gap-2">
