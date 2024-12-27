@@ -52,6 +52,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env.production file
+        run: |
+          touch .env.production
+          echo "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}" >> .env.production
+          cat .env.production
+
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
@@ -96,6 +102,12 @@ jobs:
 
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Create .env.production file
+        run: |
+          touch .env.production
+          echo "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}" >> .env.production
+          cat .env.production
 
       - name: publish release
         uses: crabnebula-dev/cloud-release@v0
