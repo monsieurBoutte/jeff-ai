@@ -5,11 +5,9 @@ import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import { listen } from '@tauri-apps/api/event';
 
 import { modeMachine } from '@/machines/mode-machine';
-import { ModeToggle } from '@/components/mode-toggle';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
 import { RewriteToggle } from '@/components/rewrite-toggle';
 import { RewriteForm } from '@/components/rewrite-form';
-import { Button } from '@/components/ui/button';
 
 interface TranscriptionEvent {
   payload: string;
@@ -61,8 +59,7 @@ export default function Home() {
     send({ type: 'TOGGLE_REWRITE' });
   }, [send]);
 
-  const { isAuthenticated, login, logout, isLoading, register, getToken } =
-    KindeAuth.useKindeAuth();
+  const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
 
   const captureUser = useCallback(async () => {
     if (!isAuthenticated || !getToken) {

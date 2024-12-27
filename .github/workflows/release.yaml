@@ -13,6 +13,7 @@ concurrency:
 
 env:
   CN_APP_SLUG: monsieurboutte/jeff-ai
+  DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
 
 jobs:
   draft:
@@ -40,17 +41,14 @@ jobs:
       matrix:
         settings:
           # MacOS Intel
-          # - host: macos-latest
-          #   target: x86_64-apple-darwin
+          - host: macos-latest
+            target: x86_64-apple-darwin
           # MacOS Silicon
           - host: macos-latest
             target: aarch64-apple-darwin
           # Windows
           - host: windows-latest
             target: x86_64-pc-windows-msvc
-          # Linux
-          - host: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
 
@@ -71,12 +69,6 @@ jobs:
           toolchain: stable
           cache: false
 
-      - name: install Linux dependencies
-        if: matrix.settings.host == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1
-
       - name: build tauri app
         run: |
           pnpm install
@@ -84,6 +76,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
 
       - name: upload assets
         uses: crabnebula-dev/cloud-release@v0
