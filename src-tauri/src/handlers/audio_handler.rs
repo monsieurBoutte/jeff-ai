@@ -143,7 +143,8 @@ async fn transcribe_audio(file_path: String) -> Result<String, String> {
     };
     use tokio::fs::File as TokioFile;
 
-    let deepgram_api_key = "c979a8ee345cde4a2860d447f1462a4e51b900ba";
+    let deepgram_api_key = std::env::var("DEEPGRAM_API_KEY")
+    .expect("DEEPGRAM_API_KEY not set in .env file");
 
     let dg_client = Deepgram::new(&deepgram_api_key)
         .map_err(|e| format!("Failed to create Deepgram client: {}", e))?;

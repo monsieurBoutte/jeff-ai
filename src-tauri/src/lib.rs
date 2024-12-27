@@ -15,6 +15,7 @@ use handlers::*;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
+    // Load environment variables from .env file
     dotenv().ok();
 
     tauri::Builder::default()
