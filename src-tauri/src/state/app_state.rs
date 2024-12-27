@@ -21,4 +21,4 @@ pub struct AppState {
     pub audio_writer: Mutex<Option<Arc<Mutex<Option<(WavWriter<BufWriter<File>>, String)>>>>>,
     pub recording_sender: Arc<Mutex<Option<Sender<()>>>>,
     pub app_handle: tauri::AppHandle,
-} 
+}

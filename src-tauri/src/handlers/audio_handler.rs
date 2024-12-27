@@ -8,6 +8,7 @@ use tauri::{Emitter, EventTarget};
 use crate::state::RecordingState;
 use dirs;
 use hound::WavWriter;
+use std::time::Instant;
 
 #[tauri::command]
 pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -87,7 +88,7 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
 }
 
 #[tauri::command]
-pub async fn stop_recording(state: tauri::State<'_, AppState>, app_handle: tauri::AppHandle) -> Result<(), String> {
+pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: tauri::AppHandle) -> Result<(), String> {
     {
         let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
         match *recording_state {
@@ -155,14 +156,19 @@ async fn transcribe_audio(file_path: String) -> Result<String, String> {
         .language(Language::en_US)
         .build();
 
+    let start_time = Instant::now();
+    log::info!("Starting transcription for file: {}", file_path);
+
     let response = dg_client
         .transcription()
         .prerecorded(source, &options)
         .await
         .map_err(|e| format!("Transcription failed: {}", e))?;
 
-    let transcript = &response.results.channels[0].alternatives[0].transcript;
+    let duration = start_time.elapsed();
+    log::info!("Transcription completed in {:.2?}", duration);
 
+    let transcript = &response.results.channels[0].alternatives[0].transcript;
     log::info!("Transcript: {}", transcript);
 
     Ok(transcript.to_string())

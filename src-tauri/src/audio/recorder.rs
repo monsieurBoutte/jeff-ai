@@ -21,7 +21,6 @@ pub fn write_input_data(
     match writer.lock() {
         Ok(mut guard) => {
             if let Some((writer, _)) = guard.as_mut() {
-                log::info!("Writing {} samples to WAV file", input.len());
                 for &sample in input.iter() {
                    let converted_sample = (sample * i16::MAX as f32) as i16;
                    writer.write_sample(converted_sample).unwrap();
