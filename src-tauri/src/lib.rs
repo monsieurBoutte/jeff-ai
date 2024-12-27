@@ -13,8 +13,54 @@ use std::sync::mpsc::{channel, Sender};
 use hound::{WavSpec, WavWriter};
 use std::fs::File;
 use std::io::BufWriter;
+use tauri::{Emitter, EventTarget, Manager};
 use chrono::Local;
+
+use tokio::fs::File as TokioFile;
 use dirs;
+
+use deepgram::{
+    common::{
+        audio_source::AudioSource,
+        options::{Language, Options},
+    },
+    Deepgram, DeepgramError,
+};
+
+#[tauri::command]
+async fn transcribe_audio(file_path: String) -> Result<String, String> {
+    // Load the Deepgram API key from environment variables
+    let deepgram_api_key = "c979a8ee345cde4a2860d447f1462a4e51b900ba";
+    // let deepgram_api_key = env::var("DEEPGRAM_API_KEY")
+    //     .map_err(|_| "DEEPGRAM_API_KEY not set in environment variables".to_string())?;
+
+    // Initialize the Deepgram client
+    let dg_client = Deepgram::new(&deepgram_api_key)
+        .map_err(|e: DeepgramError| format!("Failed to create Deepgram client: {}", e))?;
+
+    // Read the audio file into a byte vector
+    let file = TokioFile::open(&file_path).await.unwrap();
+    let source = AudioSource::from_buffer_with_mime_type(file, "audio/wav");
+
+    let options = Options::builder()
+        .punctuate(true)
+        .language(Language::en_US)
+        .build();
+
+    // Send the audio data for transcription
+    let response = dg_client
+        .transcription()
+        .prerecorded(source, &options)
+        .await
+        .map_err(|e: DeepgramError| format!("Transcription failed: {}", e))?;
+
+    // Extract the transcript
+    let transcript = &response.results.channels[0].alternatives[0].transcript;
+
+    log::info!("Transcript: {}", transcript);
+
+    Ok(transcript.to_string())
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct User {
@@ -35,8 +81,9 @@ struct AppState {
     user: Mutex<Option<User>>,
     recording_state: Mutex<RecordingState>,
     is_recording: Arc<AtomicBool>,
-    audio_writer: Mutex<Option<Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>>>,
+    audio_writer: Mutex<Option<Arc<Mutex<Option<(WavWriter<BufWriter<File>>, String)>>>>>,
     recording_sender: Arc<Mutex<Option<Sender<()>>>>,
+    app_handle: tauri::AppHandle,
 }
 
 // Add message enum for recording control
@@ -58,11 +105,11 @@ fn wav_spec_from_config(config: &cpal::SupportedStreamConfig) -> WavSpec {
 }
 
 // Helper function to write input data
-fn write_input_data(input: &[f32], writer: &Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>)
+fn write_input_data(input: &[f32], writer: &Arc<Mutex<Option<(WavWriter<BufWriter<File>>, String)>>>)
 {
     match writer.lock() {
         Ok(mut guard) => {
-            if let Some(writer) = guard.as_mut() {
+            if let Some((writer, _)) = guard.as_mut() {
                 log::info!("Writing {} samples to WAV file", input.len());
                 for &sample in input.iter() {
                    let converted_sample = (sample * i16::MAX as f32) as i16;
@@ -288,8 +335,9 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
             let spec = wav_spec_from_config(&config);
             let writer = WavWriter::create(&output_path, spec)
                 .map_err(|e| e.to_string())?;
+            let path_str = output_path.to_string_lossy().to_string();
 
-            let writer = Arc::new(Mutex::new(Some(writer)));
+            let writer = Arc::new(Mutex::new(Some((writer, path_str))));
             let writer_clone = Arc::clone(&writer);
 
             // Set up communication channel
@@ -335,7 +383,7 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
 
                 // Finalize the writer
                 if let Ok(mut writer_guard) = writer.lock() {
-                    if let Some(writer) = writer_guard.take() {
+                    if let Some((writer, _)) = writer_guard.take() {
                         log::info!("Finalizing WAV writer");
                         writer.finalize().unwrap();
                     } else {
@@ -353,30 +401,60 @@ async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String
 }
 
 #[tauri::command]
-async fn stop_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
-
-    match *recording_state {
-        RecordingState::Recording | RecordingState::Paused => {
-            *recording_state = RecordingState::Stopped;
-
-            // Rest of your existing stop logic...
-            log::info!("Stopping recording");
-            state.is_recording.store(false, Ordering::SeqCst);
-
-            // Send stop message
-            if let Some(sender) = state.recording_sender.lock().map_err(|e| e.to_string())?.as_ref() {
-                sender.send(()).map_err(|e| e.to_string())?;
+async fn stop_recording(state: tauri::State<'_, AppState>, app_handle: tauri::AppHandle) -> Result<(), String> {
+    {
+        let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
+        match *recording_state {
+            RecordingState::Recording | RecordingState::Paused => {
+                *recording_state = RecordingState::Stopped;
             }
-
-            // Finalize WAV file
-            // The writer is finalized in the recording thread
-            // We don't need to do anything here
-
-            Ok(())
+            RecordingState::Stopped => return Err("Recording not started".to_string()),
         }
-        RecordingState::Stopped => Err("Recording not started".to_string())
+    } // MutexGuard is dropped here
+
+    // Rest of the async code...
+    log::info!("Stopping recording");
+    state.is_recording.store(false, Ordering::SeqCst);
+
+    // Send stop message
+    if let Some(sender) = state.recording_sender.lock().map_err(|e| e.to_string())?.as_ref() {
+        sender.send(()).map_err(|e| e.to_string())?;
     }
+
+    // Get the audio file path
+    let audio_file_path = {
+        let audio_writer_guard = state.audio_writer.lock().map_err(|e| e.to_string())?;
+        if let Some(writer_arc) = audio_writer_guard.as_ref() {
+            let writer_guard = writer_arc.lock().map_err(|e| e.to_string())?;
+            writer_guard.as_ref().map(|(_, path)| path.clone())
+        } else {
+            log::error!("Audio writer is not available");
+            None
+        }
+    };
+
+    // Transcribe the audio file if path is available
+    if let Some(file_path) = audio_file_path {
+        log::info!("Transcribing audio file: {}", file_path);
+        match transcribe_audio(file_path).await {
+            Ok(transcript) => {
+                log::info!("Transcription successful: {}", transcript);
+                // Emit an event to all targets
+                state.app_handle.emit_to(EventTarget::any(), "transcription-complete", Some(transcript))
+                    .map_err(|e| e.to_string())?;
+            }
+            Err(e) => {
+                log::error!("Transcription failed: {}", e);
+                // Emit an error event to all targets
+                state.app_handle.emit_to(EventTarget::any(), "transcription-error", Some(e))
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    } else {
+        log::error!("Could not get audio file path for transcription");
+    }
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -384,16 +462,19 @@ pub fn run() {
     #[cfg(debug_assertions)]
     dotenv().ok();
 
-    let app_state = AppState {
-        user: Mutex::new(None),
-        recording_state: Mutex::new(RecordingState::Stopped),
-        is_recording: Arc::new(AtomicBool::new(false)),
-        audio_writer: Mutex::new(None),
-        recording_sender: Arc::new(Mutex::new(None)),
-    };
-
     tauri::Builder::default()
-        .manage(app_state)
+        .setup(|app| {
+            let app_state = AppState {
+                user: Mutex::new(None),
+                recording_state: Mutex::new(RecordingState::Stopped),
+                is_recording: Arc::new(AtomicBool::new(false)),
+                audio_writer: Mutex::new(None),
+                recording_sender: Arc::new(Mutex::new(None)),
+                app_handle: app.handle().clone(),
+            };
+            app.manage(app_state);
+            Ok(())
+        })
         .plugin(
             tauri_plugin_log::Builder::new()
                 .target(tauri_plugin_log::Target::new(
