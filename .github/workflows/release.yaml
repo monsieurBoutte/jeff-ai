@@ -69,6 +69,10 @@ jobs:
           toolchain: stable
           cache: false
 
+      - name: Add x86_64-apple-darwin target
+        if: matrix.settings.target == 'x86_64-apple-darwin'
+        run: rustup target add x86_64-apple-darwin
+
       - name: build tauri app
         run: |
           pnpm install
