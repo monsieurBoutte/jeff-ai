@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useMachine } from '@xstate/react';
 import { invoke } from '@tauri-apps/api/core';
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
@@ -6,8 +6,6 @@ import { listen } from '@tauri-apps/api/event';
 
 import { modeMachine } from '@/machines/mode-machine';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
-import { RewriteToggle } from '@/components/rewrite-toggle';
-import { RewriteForm } from '@/components/rewrite-form';
 import { DocumentEditor } from '@/components/document-editor';
 
 interface TranscriptionEvent {
@@ -56,10 +54,6 @@ export default function Home() {
     }
   }, [send, state]);
 
-  const handleRewriteToggle = useCallback(() => {
-    send({ type: 'TOGGLE_REWRITE' });
-  }, [send]);
-
   const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
 
   const captureUser = useCallback(async () => {
@@ -77,49 +71,25 @@ export default function Home() {
     captureUser();
   }, [captureUser]);
 
+  // Format transcriptions into HTML content
+  const editorContent = useMemo(
+    () => transcriptions.map((t) => `<p>${t.transcript}</p>`).join(''),
+    [transcriptions]
+  );
+
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full w-full gap-4">
       <div className="flex flex-row justify-between items-center">
         <div className="flex gap-2">
-          <RewriteToggle
-            isActive={state.matches('rewrite')}
-            onClick={handleRewriteToggle}
-          />
           <MicrophoneToggle
             isActive={state.matches('recorder')}
             onClick={handleMicToggle}
           />
         </div>
       </div>
-      <div className="w-full bg-slate-300">
-        <DocumentEditor />
-        {/* {state.matches('rewrite') && <RewriteForm />} */}
+      <div className="w-[calc(100vw-1rem)] md:w-[calc(80vw-7rem)]">
+        <DocumentEditor content={editorContent} />
       </div>
-      {transcriptions.length > 0 && (
-        <div className="backdrop-blur-sm bg-white/10 dark:bg-black/10 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex flex-col gap-2">
-            {[...transcriptions]
-              .sort(
-                (a, b) =>
-                  new Date(b.created_at).getTime() -
-                  new Date(a.created_at).getTime()
-              )
-              .map((transcription, index) => (
-                <div key={transcription.created_at}>
-                  <p className="select-text text-gray-700 dark:text-gray-200">
-                    {transcription.transcript}
-                  </p>
-                  {index === transcriptions.length - 1 && (
-                    <time className="select-none text-xs text-gray-300 dark:text-gray-400 mt-2 block font-extralight">
-                      <span className="italic">latest entry @ </span>
-                      {new Date(transcription.created_at).toLocaleString()}
-                    </time>
-                  )}
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
