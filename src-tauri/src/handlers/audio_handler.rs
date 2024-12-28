@@ -9,6 +9,7 @@ use crate::state::RecordingState;
 use dirs;
 use hound::WavWriter;
 use std::time::Instant;
+use std::env;
 
 #[tauri::command]
 pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -143,8 +144,10 @@ async fn transcribe_audio(file_path: String) -> Result<String, String> {
     };
     use tokio::fs::File as TokioFile;
 
-    let deepgram_api_key = std::env::var("DEEPGRAM_API_KEY")
-    .expect("DEEPGRAM_API_KEY not set in .env file");
+    let deepgram_api_key = env::var("DEEPGRAM_API_KEY").map_err(|e| {
+        log::error!("Failed to get DEEPGRAM_API_KEY: {}", e);
+        "DEEPGRAM_API_KEY not found in environment".to_string()
+    })?;
 
     let dg_client = Deepgram::new(&deepgram_api_key)
         .map_err(|e| format!("Failed to create Deepgram client: {}", e))?;

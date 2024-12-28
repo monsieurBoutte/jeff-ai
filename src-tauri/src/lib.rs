@@ -22,6 +22,7 @@ pub fn run() {
         .setup(|app| {
             let app_state = AppState {
                 user: Mutex::new(None),
+                existing_user: Mutex::new(None),
                 recording_state: Mutex::new(RecordingState::Stopped),
                 is_recording: Arc::new(AtomicBool::new(false)),
                 audio_writer: Mutex::new(None),
@@ -48,7 +49,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            refine_message,
+            refine_text,
+            convert_to_markdown,
             fetch_tasks,
             capture_user,
             set_user,

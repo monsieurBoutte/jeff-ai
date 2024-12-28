@@ -27,18 +27,20 @@ export default function Home() {
     };
   }, []);
 
-  const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
+  const { isAuthenticated, getToken, getUser } = KindeAuth.useKindeAuth();
 
   const captureUser = useCallback(async () => {
-    if (!isAuthenticated || !getToken) {
+    if (!isAuthenticated || !getToken || !getUser) {
       return;
     }
+    const authUser = getUser();
     const token = await getToken();
 
     await invoke('capture_user', {
-      token
+      token,
+      authUser
     });
-  }, [getToken, isAuthenticated]);
+  }, [getToken, getUser, isAuthenticated]);
 
   useEffect(() => {
     captureUser();

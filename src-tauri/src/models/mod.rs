@@ -1,3 +1,3 @@
 mod user;
 
-pub use user::{User, RefinedMessage};
+pub use user::{User, ExistingUser};

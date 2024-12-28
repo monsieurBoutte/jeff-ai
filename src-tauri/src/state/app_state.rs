@@ -5,7 +5,7 @@ use std::io::BufWriter;
 use std::fs::File;
 use hound::WavWriter;
 use serde::{Deserialize, Serialize};
-use crate::models::User;
+use crate::models::{User, ExistingUser};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RecordingState {
@@ -16,6 +16,7 @@ pub enum RecordingState {
 
 pub struct AppState {
     pub user: Mutex<Option<User>>,
+    pub existing_user: Mutex<Option<ExistingUser>>,
     pub recording_state: Mutex<RecordingState>,
     pub is_recording: Arc<AtomicBool>,
     pub audio_writer: Mutex<Option<Arc<Mutex<Option<(WavWriter<BufWriter<File>>, String)>>>>>,

@@ -8,9 +8,24 @@ pub struct User {
     pub given_name: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExistingUser {
+    pub id: String,
+    #[serde(rename = "authUserId")]
+    pub auth_user_id: String,
+    pub email: Option<String>,
+    #[serde(rename = "displayName")]
+    pub display_name: Option<String>,
+    #[serde(rename = "createdAt")]
+    pub created_at: Option<String>,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RefinedMessage {
-    pub suggested_message_rewrite: String,
+pub struct RefinedText {
+    pub refined_text: String,
+    pub explanation: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,4 +39,4 @@ pub struct Task {
     pub created_at: String,
     #[serde(rename = "updatedAt")]
     pub updated_at: String,
-} 
+}

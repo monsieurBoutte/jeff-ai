@@ -56,7 +56,14 @@ jobs:
         run: |
           touch .env.production
           echo "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}" >> .env.production
+          echo "Verifying .env.production content:"
           cat .env.production
+          echo "Checking if DEEPGRAM_API_KEY is set in environment:"
+          if [ ! -z "$DEEPGRAM_API_KEY" ]; then
+            echo "DEEPGRAM_API_KEY is set"
+          else
+            echo "DEEPGRAM_API_KEY is not set"
+          fi
 
       - name: Install pnpm
         uses: pnpm/action-setup@v3
@@ -80,7 +87,14 @@ jobs:
         run: rustup target add x86_64-apple-darwin
 
       - name: build tauri app
+        shell: bash
         run: |
+          echo "Checking DEEPGRAM_API_KEY before build:"
+          if [ ! -z "$DEEPGRAM_API_KEY" ]; then
+            echo "DEEPGRAM_API_KEY is set"
+          else
+            echo "DEEPGRAM_API_KEY is not set"
+          fi
           pnpm install
           pnpm run tauri build --ci --target ${{ matrix.settings.target }}
         env:

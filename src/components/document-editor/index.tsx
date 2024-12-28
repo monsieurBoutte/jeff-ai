@@ -1,7 +1,11 @@
 import { useEffect, useCallback } from 'react';
 import { useMachine } from '@xstate/react';
 import { invoke } from '@tauri-apps/api/core';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import {
+  Copy,
+  Layers2,
   Bold as BoldIcon,
   Italic as ItalicIcon,
   PenLine,
@@ -36,9 +40,11 @@ import { AnimatePresence, useReducedMotion } from 'motion/react';
 import { MenuBar } from '@/components/document-editor/menu-bar';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { modeMachine } from '@/machines/mode-machine';
 import { cn } from '@/lib/utils';
 import './styles.css';
+import { MarkdownResponse, RefineTextResponse } from '@/types/commands';
 
 interface DocumentEditorProps {
   content: string;
@@ -46,6 +52,7 @@ interface DocumentEditorProps {
 
 export const DocumentEditor = ({ content }: DocumentEditorProps) => {
   const [state, send] = useMachine(modeMachine);
+  const { toast } = useToast();
   const editor = useEditor({
     editorProps: {
       attributes: {
@@ -87,6 +94,8 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
     ]
   });
 
+  const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
+
   useEffect(() => {
     if (content !== '' && editor) {
       if (editor.isEmpty) {
@@ -127,6 +136,65 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
       ease: 'easeInOut'
     }
   };
+
+  const handleRewriteSubmission = useCallback(
+    async (text: string, context: string) => {
+      if (!isAuthenticated || !getToken) {
+        return;
+      }
+      const token = await getToken();
+
+      const response = await invoke<RefineTextResponse>('refine_text', {
+        token,
+        text,
+        context: context !== '' ? context : undefined
+      });
+      editor.commands.insertContent(response.refinedText);
+
+      if (response?.explanation)
+        toast({
+          description: response.explanation
+        });
+    },
+    [editor, isAuthenticated, getToken]
+  );
+
+  const handleCopyMarkdown = useCallback(
+    async (html: string) => {
+      if (!isAuthenticated || !getToken) {
+        return;
+      }
+      const token = await getToken();
+
+      const response = await invoke<MarkdownResponse>('convert_to_markdown', {
+        token,
+        html
+      });
+
+      writeText(response.markdown);
+
+      toast({
+        description: 'markdown copied to clipboard'
+      });
+    },
+    [editor, isAuthenticated, getToken]
+  );
+
+  const hasNonParagraphContent = useCallback(() => {
+    if (!editor) return false;
+    const doc = editor.state.doc;
+    let hasNonParagraph = false;
+
+    doc.descendants((node) => {
+      if (node.type.name !== 'paragraph' && node.type.name !== 'text') {
+        hasNonParagraph = true;
+        return false; // Stop traversal
+      }
+      return true;
+    });
+
+    return hasNonParagraph;
+  }, [editor]);
 
   return (
     <div>
@@ -182,8 +250,19 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                console.log('Refine');
+              onClick={async () => {
+                const selection = editor.state.selection;
+                if (!selection.empty) {
+                  const selectedText = editor.state.doc.textBetween(
+                    selection.from,
+                    selection.to
+                  );
+                  const additionalContext = editor.getText();
+                  await handleRewriteSubmission(
+                    selectedText,
+                    additionalContext
+                  );
+                }
               }}
               className={cn('hover:bg-gray-200 dark:hover:bg-gray-700')}
             >
@@ -203,7 +282,17 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
             }
 
             const { selection } = editor.state;
-            return selection.empty && selection.$head.parentOffset === 0;
+            const lineText = editor.state.doc.textBetween(
+              selection.$head.start(),
+              selection.$head.end()
+            );
+
+            // Check if the line contains any non-whitespace characters
+            const hasWords = /\S/.test(lineText);
+
+            return (
+              selection.empty && selection.$head.parentOffset === 0 && !hasWords
+            );
           }}
         >
           <div className="flex gap-2">
@@ -215,35 +304,46 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
         </FloatingMenu>
       )}
       <EditorContent editor={editor} />
-      <AnimatePresence>
-        {editor && !editor.isEmpty && (
-          <motion.div className="flex gap-2 justify-end my-2" {...animations}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const html = editor.getHTML();
-                console.log(html);
-                // todo: implement AI conversion to markdown from html
-              }}
-            >
-              Copy markdown
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const plainText = editor.getText();
-                const cleanText = plainText.replace(/\n{3,}/g, '\n\n').trim();
-                console.log(cleanText);
-                navigator.clipboard.writeText(cleanText);
-              }}
-            >
-              Copy plain text
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="flex gap-2 justify-end my-2">
+        <AnimatePresence>
+          {editor && hasNonParagraphContent() && (
+            <motion.div {...animations}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const html = editor.getHTML();
+                  await handleCopyMarkdown(html);
+                }}
+              >
+                <Layers2 className="h-[1.2rem] w-[1.2rem]" />
+                Copy markdown
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {editor && !editor.isEmpty && (
+            <motion.div {...animations}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const plainText = editor.getText();
+                  const cleanText = plainText.replace(/\n{3,}/g, '\n\n').trim();
+                  writeText(cleanText);
+                  toast({
+                    description: 'plain text copied to clipboard'
+                  });
+                }}
+              >
+                <Copy className="h-[1.2rem] w-[1.2rem]" />
+                Copy plain text
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
