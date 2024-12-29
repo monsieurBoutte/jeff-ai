@@ -23,7 +23,6 @@ pub async fn refine_text(
 
     let client = reqwest::Client::new();
     let response = client
-        // .post("http://localhost:8787/api/refinements")
         .post("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/refinements")
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")

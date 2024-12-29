@@ -8,7 +8,7 @@ import {
   Layers2,
   Bold as BoldIcon,
   Italic as ItalicIcon,
-  PenLine,
+  Blend,
   Strikethrough
 } from 'lucide-react';
 import Bold from '@tiptap/extension-bold';
@@ -266,7 +266,7 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
               }}
               className={cn('hover:bg-gray-200 dark:hover:bg-gray-700')}
             >
-              <PenLine className="h-[1.2rem] w-[1.2rem]" />
+              <Blend className="h-[1.2rem] w-[1.2rem]" />
               <span>Refine</span>
             </Button>
           </div>

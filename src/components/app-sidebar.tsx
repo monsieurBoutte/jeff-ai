@@ -1,7 +1,7 @@
 import {
   ListTodo,
   Home,
-  PenLine,
+  Blend,
   Search,
   Settings,
   CassetteTape,
@@ -34,7 +34,7 @@ const items = [
   {
     title: 'Refinements',
     url: '/refinements',
-    icon: PenLine
+    icon: Blend
   },
   {
     title: 'Tasks',
