@@ -1,18 +1,17 @@
 use crate::state::AppState;
 use crate::audio::{wav_spec_from_config, write_input_data};
-use chrono::Local;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::sync::{atomic::Ordering, Arc, Mutex};
 use std::sync::mpsc::channel;
 use tauri::{Emitter, EventTarget};
 use crate::state::RecordingState;
-use dirs;
 use hound::WavWriter;
 use std::time::Instant;
 use reqwest::multipart::{Form, Part};
 use serde_json::Value;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
+use tempfile::Builder;
 
 #[tauri::command]
 pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -24,13 +23,15 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
 
             log::info!("Starting recording");
 
-            let desktop_dir = dirs::desktop_dir()
-                .ok_or_else(|| "Could not find desktop directory".to_string())?;
+            // Create temp file with .wav extension
+            let temp_file = Builder::new()
+                .prefix("recording_")
+                .suffix(".wav")
+                .tempfile()
+                .map_err(|e| format!("Failed to create temp file: {}", e))?;
 
-            let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-            let output_path = desktop_dir.join(format!("recording_{}.wav", timestamp));
-
-            log::info!("Recording to: {:?}", output_path);
+            let output_path = temp_file.path().to_path_buf();
+            log::info!("Recording to temporary file: {:?}", output_path);
 
             let host = cpal::default_host();
             let device = host.default_input_device()
@@ -54,6 +55,9 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
 
             state.is_recording.store(true, Ordering::SeqCst);
             let recording_flag = Arc::clone(&state.is_recording);
+
+            // Store temp_file handle in state to prevent premature deletion
+            *state.temp_file.lock().map_err(|e| e.to_string())? = Some(temp_file);
 
             std::thread::spawn(move || {
                 let recording_flag_stream = Arc::clone(&recording_flag);
@@ -123,7 +127,24 @@ pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: taur
     if let Some(file_path) = audio_file_path {
         log::info!("Transcribing audio file: {}", file_path);
 
-        match transcribe_audio(token, file_path).await {
+        let transcription_result = transcribe_audio(token, file_path.clone()).await;
+
+        // Clean up and verify temp file deletion
+        if let Ok(mut temp_file_guard) = state.temp_file.lock() {
+            let path = temp_file_guard.as_ref().map(|f| f.path().to_owned());
+            temp_file_guard.take();  // This will remove and delete the temp file
+
+            // Verify deletion
+            if let Some(file_path) = path {
+                if file_path.exists() {
+                    log::warn!("Temporary file still exists at: {:?}", file_path);
+                } else {
+                    log::info!("Successfully deleted temporary file at: {:?}", file_path);
+                }
+            }
+        }
+
+        match transcription_result {
             Ok(transcript) => {
                 state.app_handle.emit_to(EventTarget::any(), "transcription-complete", Some(transcript))
                     .map_err(|e| e.to_string())?;

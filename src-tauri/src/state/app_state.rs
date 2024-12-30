@@ -6,6 +6,7 @@ use std::fs::File;
 use hound::WavWriter;
 use serde::{Deserialize, Serialize};
 use crate::models::{User, ExistingUser};
+use tempfile::NamedTempFile;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RecordingState {
@@ -22,4 +23,5 @@ pub struct AppState {
     pub audio_writer: Mutex<Option<Arc<Mutex<Option<(WavWriter<BufWriter<File>>, String)>>>>>,
     pub recording_sender: Arc<Mutex<Option<Sender<()>>>>,
     pub app_handle: tauri::AppHandle,
+    pub temp_file: Arc<Mutex<Option<NamedTempFile>>>,
 }

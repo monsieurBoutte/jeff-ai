@@ -23,6 +23,7 @@ pub fn run() {
             let app_state = AppState {
                 user: Mutex::new(None),
                 existing_user: Mutex::new(None),
+                temp_file: Arc::new(Mutex::new(None)),
                 recording_state: Mutex::new(RecordingState::Stopped),
                 is_recording: Arc::new(AtomicBool::new(false)),
                 audio_writer: Mutex::new(None),
