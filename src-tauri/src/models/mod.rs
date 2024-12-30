@@ -1,3 +1,3 @@
 mod user;
 
-pub use user::{User, ExistingUser};
+pub use user::{ExistingUser, User};

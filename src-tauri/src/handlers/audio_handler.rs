@@ -1,17 +1,17 @@
-use crate::state::AppState;
 use crate::audio::{wav_spec_from_config, write_input_data};
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use std::sync::{atomic::Ordering, Arc, Mutex};
-use std::sync::mpsc::channel;
-use tauri::{Emitter, EventTarget};
+use crate::state::AppState;
 use crate::state::RecordingState;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use hound::WavWriter;
-use std::time::Instant;
 use reqwest::multipart::{Form, Part};
 use serde_json::Value;
+use std::sync::mpsc::channel;
+use std::sync::{atomic::Ordering, Arc, Mutex};
+use std::time::Instant;
+use tauri::{Emitter, EventTarget};
+use tempfile::Builder;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use tempfile::Builder;
 
 #[tauri::command]
 pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -34,15 +34,14 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
             log::info!("Recording to temporary file: {:?}", output_path);
 
             let host = cpal::default_host();
-            let device = host.default_input_device()
+            let device = host
+                .default_input_device()
                 .ok_or_else(|| "No input device available".to_string())?;
 
-            let config = device.default_input_config()
-                .map_err(|e| e.to_string())?;
+            let config = device.default_input_config().map_err(|e| e.to_string())?;
 
             let spec = wav_spec_from_config(&config);
-            let writer = WavWriter::create(&output_path, spec)
-                .map_err(|e| e.to_string())?;
+            let writer = WavWriter::create(&output_path, spec).map_err(|e| e.to_string())?;
             let path_str = output_path.to_string_lossy().to_string();
 
             let writer = Arc::new(Mutex::new(Some((writer, path_str))));
@@ -61,18 +60,20 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
 
             std::thread::spawn(move || {
                 let recording_flag_stream = Arc::clone(&recording_flag);
-                let stream = device.build_input_stream(
-                    &config.into(),
-                    move |data: &[f32], _| {
-                        if recording_flag_stream.load(Ordering::SeqCst) {
-                            write_input_data(data, &writer_clone);
-                        }
-                    },
-                    move |err| {
-                        log::error!("Error in audio stream: {}", err);
-                    },
-                    None
-                ).unwrap();
+                let stream = device
+                    .build_input_stream(
+                        &config.into(),
+                        move |data: &[f32], _| {
+                            if recording_flag_stream.load(Ordering::SeqCst) {
+                                write_input_data(data, &writer_clone);
+                            }
+                        },
+                        move |err| {
+                            log::error!("Error in audio stream: {}", err);
+                        },
+                        None,
+                    )
+                    .unwrap();
 
                 stream.play().unwrap();
 
@@ -91,12 +92,16 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
 
             Ok(())
         }
-        _ => Err("Recording already in progress".to_string())
+        _ => Err("Recording already in progress".to_string()),
     }
 }
 
 #[tauri::command]
-pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: tauri::AppHandle, token: String) -> Result<(), String> {
+pub async fn stop_recording(
+    state: tauri::State<'_, AppState>,
+    _app_handle: tauri::AppHandle,
+    token: String,
+) -> Result<(), String> {
     {
         let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
         match *recording_state {
@@ -110,7 +115,12 @@ pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: taur
     log::info!("Stopping recording");
     state.is_recording.store(false, Ordering::SeqCst);
 
-    if let Some(sender) = state.recording_sender.lock().map_err(|e| e.to_string())?.as_ref() {
+    if let Some(sender) = state
+        .recording_sender
+        .lock()
+        .map_err(|e| e.to_string())?
+        .as_ref()
+    {
         sender.send(()).map_err(|e| e.to_string())?;
     }
 
@@ -132,7 +142,7 @@ pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: taur
         // Clean up and verify temp file deletion
         if let Ok(mut temp_file_guard) = state.temp_file.lock() {
             let path = temp_file_guard.as_ref().map(|f| f.path().to_owned());
-            temp_file_guard.take();  // This will remove and delete the temp file
+            temp_file_guard.take(); // This will remove and delete the temp file
 
             // Verify deletion
             if let Some(file_path) = path {
@@ -146,11 +156,19 @@ pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: taur
 
         match transcription_result {
             Ok(transcript) => {
-                state.app_handle.emit_to(EventTarget::any(), "transcription-complete", Some(transcript))
+                state
+                    .app_handle
+                    .emit_to(
+                        EventTarget::any(),
+                        "transcription-complete",
+                        Some(transcript),
+                    )
                     .map_err(|e| e.to_string())?;
             }
             Err(e) => {
-                state.app_handle.emit_to(EventTarget::any(), "transcription-error", Some(e))
+                state
+                    .app_handle
+                    .emit_to(EventTarget::any(), "transcription-error", Some(e))
                     .map_err(|e| e.to_string())?;
             }
         }
@@ -164,10 +182,12 @@ async fn transcribe_audio(token: String, file_path: String) -> Result<String, St
     log::info!("Starting transcription for file: {}", file_path);
 
     // Read the file into a buffer
-    let mut file = File::open(&file_path).await
+    let mut file = File::open(&file_path)
+        .await
         .map_err(|e| format!("Failed to open file: {}", e))?;
     let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).await
+    file.read_to_end(&mut buffer)
+        .await
         .map_err(|e| format!("Failed to read file: {}", e))?;
 
     // Create the multipart form
@@ -197,11 +217,10 @@ async fn transcribe_audio(token: String, file_path: String) -> Result<String, St
             e.to_string()
         })?;
 
-    let json_value = response.json::<Value>().await
-        .map_err(|e| {
-            log::error!("Failed to parse response as JSON: {}", e);
-            e.to_string()
-        })?;
+    let json_value = response.json::<Value>().await.map_err(|e| {
+        log::error!("Failed to parse response as JSON: {}", e);
+        e.to_string()
+    })?;
 
     log::info!("Transcription response: {}", json_value);
 

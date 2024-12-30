@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
-use std::sync::mpsc::Sender;
-use std::io::BufWriter;
-use std::fs::File;
+use crate::models::{ExistingUser, User};
 use hound::WavWriter;
 use serde::{Deserialize, Serialize};
-use crate::models::{User, ExistingUser};
+use std::fs::File;
+use std::io::BufWriter;
+use std::sync::atomic::AtomicBool;
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

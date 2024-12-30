@@ -1,16 +1,16 @@
 #[cfg(debug_assertions)]
 use dotenv::dotenv;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
+mod audio;
+mod handlers;
 mod models;
 mod state;
-mod handlers;
-mod audio;
 
-use tauri::Manager;
-use state::{AppState, RecordingState};
 use handlers::*;
+use state::{AppState, RecordingState};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -19,6 +19,7 @@ pub fn run() {
     dotenv().ok();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let app_state = AppState {
                 user: Mutex::new(None),
@@ -40,7 +41,7 @@ pub fn run() {
                         file_name: Some("app.log".to_string()),
                     },
                 ))
-                .build()
+                .build(),
         )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_http::init())

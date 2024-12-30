@@ -1,9 +1,9 @@
 use hound::WavSpec;
-use std::sync::Arc;
-use std::sync::Mutex;
+use log;
 use std::fs::File;
 use std::io::BufWriter;
-use log;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub fn wav_spec_from_config(config: &cpal::SupportedStreamConfig) -> WavSpec {
     WavSpec {
@@ -16,14 +16,14 @@ pub fn wav_spec_from_config(config: &cpal::SupportedStreamConfig) -> WavSpec {
 
 pub fn write_input_data(
     input: &[f32],
-    writer: &Arc<Mutex<Option<(hound::WavWriter<BufWriter<File>>, String)>>>
+    writer: &Arc<Mutex<Option<(hound::WavWriter<BufWriter<File>>, String)>>>,
 ) {
     match writer.lock() {
         Ok(mut guard) => {
             if let Some((writer, _)) = guard.as_mut() {
                 for &sample in input.iter() {
-                   let converted_sample = (sample * i16::MAX as f32) as i16;
-                   writer.write_sample(converted_sample).unwrap();
+                    let converted_sample = (sample * i16::MAX as f32) as i16;
+                    writer.write_sample(converted_sample).unwrap();
                 }
             } else {
                 log::error!("WAV writer is not available");

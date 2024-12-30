@@ -1,8 +1,8 @@
-use crate::state::AppState;
-use crate::models::User;
 use crate::models::ExistingUser;
-use serde_json::{json, Value};
+use crate::models::User;
+use crate::state::AppState;
 use reqwest;
+use serde_json::{json, Value};
 
 #[tauri::command]
 pub async fn set_user(state: tauri::State<'_, AppState>, user_data: User) -> Result<(), String> {
@@ -12,14 +12,25 @@ pub async fn set_user(state: tauri::State<'_, AppState>, user_data: User) -> Res
 }
 
 #[tauri::command]
-pub async fn capture_user(token: String, auth_user: User, state: tauri::State<'_, AppState>) -> Result<ExistingUser, String> {
+pub async fn capture_user(
+    token: String,
+    auth_user: User,
+    state: tauri::State<'_, AppState>,
+) -> Result<ExistingUser, String> {
     set_user(state.clone(), auth_user.clone()).await?;
 
     let client = reqwest::Client::new();
     let user_data = {
         let current_user = state.user.lock().map_err(|e| e.to_string())?;
-        current_user.as_ref()
-            .map(|u| (u.id.clone(), u.email.clone(), format!("{} {}", u.given_name, u.family_name)))
+        current_user
+            .as_ref()
+            .map(|u| {
+                (
+                    u.id.clone(),
+                    u.email.clone(),
+                    format!("{} {}", u.given_name, u.family_name),
+                )
+            })
             .ok_or_else(|| "No user found in state".to_string())?
     };
 
@@ -54,7 +65,8 @@ pub async fn capture_user(token: String, auth_user: User, state: tauri::State<'_
         e.to_string()
     })?;
 
-    let existing_user_response: ExistingUser = serde_json::from_value(json_value["user"].clone()).map_err(|e| {
+    let existing_user_response: ExistingUser = serde_json::from_value(json_value["user"].clone())
+        .map_err(|e| {
         log::error!("Failed to parse user data as ExistingUser: {}", e);
         e.to_string()
     })?;

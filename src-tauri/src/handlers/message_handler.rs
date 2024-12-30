@@ -1,20 +1,20 @@
-use serde_json::{json, Value};
 use crate::state::AppState;
+use serde_json::{json, Value};
 
 #[tauri::command]
 pub async fn refine_text(
     state: tauri::State<'_, AppState>,
     token: String,
     text: String,
-    context: Option<String>
+    context: Option<String>,
 ) -> Result<Value, String> {
     log::info!("Refining text: {}", text);
-
 
     // Get the user ID before any async operations
     let user_id: String = {
         let user_guard = state.existing_user.lock().map_err(|e| e.to_string())?;
-        user_guard.as_ref()
+        user_guard
+            .as_ref()
             .and_then(|u| Some(u.id.clone()))
             .ok_or_else(|| "User not authenticated".to_string())?
     };
@@ -55,11 +55,11 @@ pub async fn convert_to_markdown(
 ) -> Result<Value, String> {
     log::info!("Converting the following into markdown: {}", html);
 
-
     // Get the user ID before any async operations
     let user_id: String = {
         let user_guard = state.existing_user.lock().map_err(|e| e.to_string())?;
-        user_guard.as_ref()
+        user_guard
+            .as_ref()
             .and_then(|u| Some(u.id.clone()))
             .ok_or_else(|| "User not authenticated".to_string())?
     };
