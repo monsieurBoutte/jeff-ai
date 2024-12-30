@@ -26,6 +26,7 @@ pub async fn capture_user(token: String, auth_user: User, state: tauri::State<'_
     log::info!("capture_user user_data: {:?}", user_data);
 
     let response = client
+        // .post("http://localhost:8787/api/capture")
         .post("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/capture")
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")

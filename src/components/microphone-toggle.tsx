@@ -16,16 +16,11 @@ export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
       className={cn(
         'transition-colors',
         isActive &&
-          'border-red-500 animate-recording-pulse bg-red-50 dark:hover:bg-red-950'
+          'border-red-500 text-red-800 animate-recording-pulse bg-red-100 dark:bg-red-950'
       )}
     >
-      <Voicemail
-        className="h-[1.2rem] w-[1.2rem]"
-        color={isActive ? 'red' : 'currentColor'}
-      />
-      <span className={cn(isActive && 'text-red-600')}>
-        {isActive ? 'Stop recording' : 'Use Speech to Text'}
-      </span>
+      <Voicemail className="h-[1.2rem] w-[1.2rem]" />
+      <span>{isActive ? 'Stop recording' : 'Use Speech to Text'}</span>
     </Button>
   );
 }

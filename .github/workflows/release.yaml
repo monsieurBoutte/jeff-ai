@@ -13,7 +13,6 @@ concurrency:
 
 env:
   CN_APP_SLUG: monsieurboutte/jeff-ai
-  DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
 
 jobs:
   draft:
@@ -52,36 +51,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create .env.production file
-        shell: bash
-        if: runner.os != 'Windows'
-        run: |
-          touch .env.production
-          echo "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}" >> .env.production
-          echo "Verifying .env.production content:"
-          cat .env.production
-          echo "Checking if DEEPGRAM_API_KEY is set in environment:"
-          if [ ! -z "$DEEPGRAM_API_KEY" ]; then
-            echo "DEEPGRAM_API_KEY is set"
-          else
-            echo "DEEPGRAM_API_KEY is not set"
-          fi
-
-      - name: Create .env.production file (Windows)
-        shell: pwsh
-        if: runner.os == 'Windows'
-        run: |
-          New-Item -Path .env.production -ItemType File -Force
-          Add-Content -Path .env.production -Value "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}"
-          Write-Output "Verifying .env.production content:"
-          Get-Content .env.production
-          Write-Output "Checking if DEEPGRAM_API_KEY is set in environment:"
-          if ($env:DEEPGRAM_API_KEY) {
-            Write-Output "DEEPGRAM_API_KEY is set"
-          } else {
-            Write-Output "DEEPGRAM_API_KEY is not set"
-          }
-
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
@@ -106,18 +75,11 @@ jobs:
       - name: build tauri app
         shell: bash
         run: |
-          echo "Checking DEEPGRAM_API_KEY before build:"
-          if [ ! -z "$DEEPGRAM_API_KEY" ]; then
-            echo "DEEPGRAM_API_KEY is set"
-          else
-            echo "DEEPGRAM_API_KEY is not set"
-          fi
           pnpm install
           pnpm run tauri build --ci --target ${{ matrix.settings.target }}
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
 
       - name: upload assets
         uses: crabnebula-dev/cloud-release@v0
@@ -133,13 +95,6 @@ jobs:
 
       - name: Get the tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Create .env.production file
-        shell: bash
-        run: |
-          touch .env.production
-          echo "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}" >> .env.production
-          cat .env.production
 
       - name: publish release
         uses: crabnebula-dev/cloud-release@v0

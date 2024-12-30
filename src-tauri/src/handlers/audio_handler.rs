@@ -9,7 +9,10 @@ use crate::state::RecordingState;
 use dirs;
 use hound::WavWriter;
 use std::time::Instant;
-use std::env;
+use reqwest::multipart::{Form, Part};
+use serde_json::Value;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
 #[tauri::command]
 pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -89,7 +92,7 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
 }
 
 #[tauri::command]
-pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: tauri::AppHandle) -> Result<(), String> {
+pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: tauri::AppHandle, token: String) -> Result<(), String> {
     {
         let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
         match *recording_state {
@@ -119,7 +122,8 @@ pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: taur
 
     if let Some(file_path) = audio_file_path {
         log::info!("Transcribing audio file: {}", file_path);
-        match transcribe_audio(file_path).await {
+
+        match transcribe_audio(token, file_path).await {
             Ok(transcript) => {
                 state.app_handle.emit_to(EventTarget::any(), "transcription-complete", Some(transcript))
                     .map_err(|e| e.to_string())?;
@@ -134,46 +138,60 @@ pub async fn stop_recording(state: tauri::State<'_, AppState>, _app_handle: taur
     Ok(())
 }
 
-async fn transcribe_audio(file_path: String) -> Result<String, String> {
-    use deepgram::{
-        Deepgram,
-        common::{
-            audio_source::AudioSource,
-            options::{Language, Options},
-        },
-    };
-    use tokio::fs::File as TokioFile;
-
-    let deepgram_api_key = env::var("DEEPGRAM_API_KEY").map_err(|e| {
-        log::error!("Failed to get DEEPGRAM_API_KEY: {}", e);
-        "DEEPGRAM_API_KEY not found in environment".to_string()
-    })?;
-
-    let dg_client = Deepgram::new(&deepgram_api_key)
-        .map_err(|e| format!("Failed to create Deepgram client: {}", e))?;
-
-    let file = TokioFile::open(&file_path).await.unwrap();
-    let source = AudioSource::from_buffer_with_mime_type(file, "audio/wav");
-
-    let options = Options::builder()
-        .punctuate(true)
-        .language(Language::en_US)
-        .build();
-
+async fn transcribe_audio(token: String, file_path: String) -> Result<String, String> {
     let start_time = Instant::now();
     log::info!("Starting transcription for file: {}", file_path);
 
-    let response = dg_client
-        .transcription()
-        .prerecorded(source, &options)
+    // Read the file into a buffer
+    let mut file = File::open(&file_path).await
+        .map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).await
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Create the multipart form
+    let part = Part::bytes(buffer)
+        .file_name("audio.wav")
+        .mime_str("audio/wav")
+        .map_err(|e| format!("Failed to create form part: {}", e))?;
+
+    let form = Form::new()
+        .part("file", part)
+        // todo: let the user adjust this in settings
+        .text("refine", "false");
+
+    log::info!("Sending transcription request");
+
+    // Send the request
+    let client = reqwest::Client::new();
+    let response = client
+        // .post("http://localhost:8787/api/transcribe")
+        .post("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/transcribe")
+        .header("Authorization", format!("Bearer {}", token))
+        .multipart(form)
+        .send()
         .await
-        .map_err(|e| format!("Transcription failed: {}", e))?;
+        .map_err(|e| {
+            log::error!("Failed to send transcription request: {}", e);
+            e.to_string()
+        })?;
+
+    let json_value = response.json::<Value>().await
+        .map_err(|e| {
+            log::error!("Failed to parse response as JSON: {}", e);
+            e.to_string()
+        })?;
+
+    log::info!("Transcription response: {}", json_value);
+
+    // Extract the transcription from the response
+    let transcription = json_value["transcription"]
+        .as_str()
+        .ok_or_else(|| "No transcription in response".to_string())?
+        .to_string();
 
     let duration = start_time.elapsed();
-    log::info!("Transcription completed in {:.2?}", duration);
+    log::info!("Transcription completed in {:?}", duration);
 
-    let transcript = &response.results.channels[0].alternatives[0].transcript;
-    log::info!("Transcript: {}", transcript);
-
-    Ok(transcript.to_string())
+    Ok(transcription)
 }

@@ -110,14 +110,18 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
     return null;
   }
 
-  const handleMicToggle = useCallback(() => {
+  const handleMicToggle = useCallback(async () => {
+    if (!isAuthenticated || !getToken) {
+      return;
+    }
+    const token = await getToken();
     send({ type: 'TOGGLE_RECORDER' });
     if (state.matches('recorder')) {
-      invoke('stop_recording');
+      invoke('stop_recording', { token });
     } else {
       invoke('start_recording');
     }
-  }, [send, state]);
+  }, [send, state, isAuthenticated, getToken]);
 
   const shouldReduceMotion = useReducedMotion();
 

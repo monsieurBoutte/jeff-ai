@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import {
   Bold,
   Italic,
@@ -145,14 +146,21 @@ export const MenuBar = ({ editor }: MenuBarProps) => {
     transition: { duration: shouldReduceMotion ? 0.1 : 0.2 }
   };
 
-  const handleMicToggle = useCallback(() => {
+  const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
+
+  const handleMicToggle = useCallback(async () => {
+    if (!isAuthenticated || !getToken) {
+      return;
+    }
+    const token = await getToken();
+
     send({ type: 'TOGGLE_RECORDER' });
     if (state.matches('recorder')) {
-      invoke('stop_recording');
+      invoke('stop_recording', { token });
     } else {
       invoke('start_recording');
     }
-  }, [send, state]);
+  }, [send, state, isAuthenticated, getToken]);
 
   return (
     <div className="flex flex-col mb-2 gap-2">
