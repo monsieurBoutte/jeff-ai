@@ -1,5 +1,5 @@
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
-import { LogOut, LogIn, UserPlus } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
