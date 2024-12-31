@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
+import * as KindeAuth from '@kinde-oss/kinde-auth-react';
+import { LogIn, UserPlus } from 'lucide-react';
 import { Route, Switch } from 'wouter';
 
+import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -34,6 +37,8 @@ function App() {
     checkForAppUpdates();
   }, []);
 
+  const { login, register, isAuthenticated } = KindeAuth.useKindeAuth();
+
   return (
     <ThemeProvider>
       <SidebarProvider>
@@ -42,7 +47,32 @@ function App() {
           <main className="flex-1 flex flex-col w-full min-w-0">
             <SidebarTrigger />
             <section className="flex-1 w-full p-2 overflow-auto">
-              <Router />
+              {!isAuthenticated ? (
+                <div className="w-full h-full">
+                  <div className="flex flex-col gap-2 max-w-sm mx-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => login()}
+                      className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
+                    >
+                      <LogIn />
+                      <span>Log In</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => register()}
+                      className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
+                    >
+                      <UserPlus />
+                      <span>Register</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Router />
+              )}
             </section>
             <Toaster />
           </main>

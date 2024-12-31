@@ -4,8 +4,7 @@ import { LogOut, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Settings() {
-  const { logout, login, register, isAuthenticated, isLoading } =
-    KindeAuth.useKindeAuth();
+  const { logout, isAuthenticated } = KindeAuth.useKindeAuth();
 
   return (
     <div>
@@ -15,28 +14,7 @@ export default function Settings() {
         </h1>
       </div>
       <div className="mt-4">
-        {!isLoading && !isAuthenticated ? (
-          <div className="flex flex-row gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => login()}
-              className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
-            >
-              <LogIn />
-              <span>Log In</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => register()}
-              className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
-            >
-              <UserPlus />
-              <span>Register</span>
-            </Button>
-          </div>
-        ) : isAuthenticated ? (
+        {isAuthenticated && (
           <Button
             variant="outline"
             size="sm"
@@ -46,7 +24,7 @@ export default function Settings() {
             <LogOut />
             <span>Log Out</span>
           </Button>
-        ) : null}
+        )}
       </div>
     </div>
   );

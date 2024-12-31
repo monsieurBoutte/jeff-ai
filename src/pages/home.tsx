@@ -20,7 +20,6 @@ export default function Home() {
     const unlisten = listen(
       'transcription-complete',
       (event: TranscriptionEvent) => {
-        console.log('transcription-complete', event);
         setTranscription(`<p>${event.payload}</p>`);
       }
     );

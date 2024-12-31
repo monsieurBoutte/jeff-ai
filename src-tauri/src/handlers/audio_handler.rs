@@ -13,6 +13,74 @@ use tempfile::Builder;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
+async fn transcribe_audio(
+    user_id: String,
+    token: String,
+    file_path: String,
+    refine: bool,
+) -> Result<String, String> {
+    let start_time = Instant::now();
+    log::info!("Starting transcription for file: {}", file_path);
+
+    // Read the file into a buffer
+    let mut file = File::open(&file_path)
+        .await
+        .map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)
+        .await
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    log::info!("User ID: {}", user_id);
+
+    // Create the multipart form
+    let part = Part::bytes(buffer)
+        .file_name("audio.wav")
+        .mime_str("audio/wav")
+        .map_err(|e| format!("Failed to create form part: {}", e))?;
+
+    let form = Form::new()
+        .part("file", part)
+        .text("refine", refine.to_string())
+        .text("userId", user_id);
+
+    log::info!("Sending transcription request");
+
+
+    // Send the request
+    let client = reqwest::Client::new();
+    let response = client
+        // .post("http://localhost:8787/api/transcribe")
+        .post("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/transcribe")
+        .header("Authorization", format!("Bearer {}", token))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to send transcription request: {}", e);
+            e.to_string()
+        })?;
+
+    let json_value = response.json::<Value>().await.map_err(|e| {
+        log::error!("Failed to parse response as JSON: {}", e);
+        e.to_string()
+    })?;
+
+    log::info!("Transcription response: {}", json_value);
+
+    // Extract the transcription from the response
+    let transcription = json_value["transcription"]
+        .as_str()
+        .ok_or_else(|| "No transcription in response".to_string())?
+        .to_string();
+
+    let duration = start_time.elapsed();
+    log::info!("Transcription completed in {:?}", duration);
+
+    Ok(transcription)
+}
+
+
 #[tauri::command]
 pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
     let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
@@ -138,7 +206,16 @@ pub async fn stop_recording(
     if let Some(file_path) = audio_file_path {
         log::info!("Transcribing audio file: {}", file_path);
 
-        let transcription_result = transcribe_audio(token, file_path.clone(), refine).await;
+        // Get the user ID before any async operations
+        let user_id: String = {
+            let user_guard = state.existing_user.lock().map_err(|e| e.to_string())?;
+            user_guard
+                .as_ref()
+                .and_then(|u| Some(u.id.clone()))
+                .ok_or_else(|| "User not authenticated".to_string())?
+        };
+
+        let transcription_result = transcribe_audio(user_id, token, file_path.clone(), refine).await;
 
         // Clean up and verify temp file deletion
         if let Ok(mut temp_file_guard) = state.temp_file.lock() {
@@ -178,67 +255,4 @@ pub async fn stop_recording(
     }
 
     Ok(())
-}
-
-async fn transcribe_audio(
-    token: String,
-    file_path: String,
-    refine: bool,
-) -> Result<String, String> {
-    let start_time = Instant::now();
-    log::info!("Starting transcription for file: {}", file_path);
-
-    // Read the file into a buffer
-    let mut file = File::open(&file_path)
-        .await
-        .map_err(|e| format!("Failed to open file: {}", e))?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)
-        .await
-        .map_err(|e| format!("Failed to read file: {}", e))?;
-
-    // Create the multipart form
-    let part = Part::bytes(buffer)
-        .file_name("audio.wav")
-        .mime_str("audio/wav")
-        .map_err(|e| format!("Failed to create form part: {}", e))?;
-
-    let form = Form::new()
-        .part("file", part)
-        // todo: let the user adjust this in settings
-        .text("refine", refine.to_string());
-
-    log::info!("Sending transcription request");
-
-    // Send the request
-    let client = reqwest::Client::new();
-    let response = client
-        // .post("http://localhost:8787/api/transcribe")
-        .post("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/transcribe")
-        .header("Authorization", format!("Bearer {}", token))
-        .multipart(form)
-        .send()
-        .await
-        .map_err(|e| {
-            log::error!("Failed to send transcription request: {}", e);
-            e.to_string()
-        })?;
-
-    let json_value = response.json::<Value>().await.map_err(|e| {
-        log::error!("Failed to parse response as JSON: {}", e);
-        e.to_string()
-    })?;
-
-    log::info!("Transcription response: {}", json_value);
-
-    // Extract the transcription from the response
-    let transcription = json_value["transcription"]
-        .as_str()
-        .ok_or_else(|| "No transcription in response".to_string())?
-        .to_string();
-
-    let duration = start_time.elapsed();
-    log::info!("Transcription completed in {:?}", duration);
-
-    Ok(transcription)
 }
