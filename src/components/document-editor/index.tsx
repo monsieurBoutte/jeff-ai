@@ -26,6 +26,7 @@ import HardBreak from '@tiptap/extension-hard-break';
 import History from '@tiptap/extension-history';
 import Placeholder from '@tiptap/extension-placeholder';
 import Code from '@tiptap/extension-code';
+import CharacterCount from '@tiptap/extension-character-count';
 import CodeBlock from '@tiptap/extension-code-block';
 import Text from '@tiptap/extension-text';
 import {
@@ -36,6 +37,7 @@ import {
 } from '@tiptap/react';
 import * as motion from 'motion/react-client';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
+import NumberFlow from '@number-flow/react';
 
 import { MenuBar } from '@/components/document-editor/menu-bar';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
@@ -70,6 +72,7 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
           class: 'dark:bg-gray-800 bg-gray-100 p-2 rounded-tl-md rounded-bl-md'
         }
       }),
+      CharacterCount,
       Italic,
       Strike,
       Highlight,
@@ -117,7 +120,7 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
     const token = await getToken();
     send({ type: 'TOGGLE_RECORDER' });
     if (state.matches('recorder')) {
-      invoke('stop_recording', { token });
+      invoke('stop_recording', { token, refine: false });
     } else {
       invoke('start_recording');
     }
@@ -308,45 +311,61 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
         </FloatingMenu>
       )}
       <EditorContent editor={editor} />
-      <div className="flex gap-2 justify-end my-2">
-        <AnimatePresence>
-          {editor && hasNonParagraphContent() && (
-            <motion.div {...animations}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const html = editor.getHTML();
-                  await handleCopyMarkdown(html);
-                }}
-              >
-                <Layers2 className="h-[1.2rem] w-[1.2rem]" />
-                Copy markdown
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {editor && !editor.isEmpty && (
-            <motion.div {...animations}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const plainText = editor.getText();
-                  const cleanText = plainText.replace(/\n{3,}/g, '\n\n').trim();
-                  writeText(cleanText);
-                  toast({
-                    description: 'plain text copied to clipboard'
-                  });
-                }}
-              >
-                <Copy className="h-[1.2rem] w-[1.2rem]" />
-                Copy plain text
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="flex justify-between items-start my-2 sm:my-4">
+        <div className="flex gap-2 items-center">
+          <span className="text-gray-300 dark:text-gray-700 text-sm gap-2">
+            Word count:
+          </span>
+          <NumberFlow
+            value={editor.storage.characterCount.words()}
+            trend={0}
+            className="text-gray-300 dark:text-gray-700 text-sm"
+          />
+        </div>
+        <div className="flex gap-2 justify-end">
+          <AnimatePresence>
+            {editor &&
+              hasNonParagraphContent() &&
+              editor.storage.characterCount.words() > 0 && (
+                <motion.div {...animations}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const html = editor.getHTML();
+                      await handleCopyMarkdown(html);
+                    }}
+                  >
+                    <Layers2 className="h-[1.2rem] w-[1.2rem]" />
+                    <span>markdown</span>
+                  </Button>
+                </motion.div>
+              )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {editor && !editor.isEmpty && (
+              <motion.div {...animations}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const plainText = editor.getText();
+                    const cleanText = plainText
+                      .replace(/\n{3,}/g, '\n\n')
+                      .trim();
+                    writeText(cleanText);
+                    toast({
+                      description: 'plain text copied to clipboard'
+                    });
+                  }}
+                >
+                  <Copy className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Copy text</span>
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

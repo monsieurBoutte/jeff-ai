@@ -156,7 +156,7 @@ export const MenuBar = ({ editor }: MenuBarProps) => {
 
     send({ type: 'TOGGLE_RECORDER' });
     if (state.matches('recorder')) {
-      invoke('stop_recording', { token });
+      invoke('stop_recording', { token, refine: false });
     } else {
       invoke('start_recording');
     }

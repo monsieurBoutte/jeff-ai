@@ -11,6 +11,9 @@ dependencies:
   '@kinde-oss/kinde-auth-react':
     specifier: ^4.0.4
     version: 4.0.4(react-dom@18.3.1)(react@18.3.1)
+  '@number-flow/react':
+    specifier: ^0.4.4
+    version: 0.4.4(react-dom@18.3.1)(react@18.3.1)
   '@radix-ui/react-dialog':
     specifier: ^1.1.2
     version: 1.1.2(@types/react-dom@18.3.1)(@types/react@18.3.12)(react-dom@18.3.1)(react@18.3.1)
@@ -74,6 +77,9 @@ dependencies:
   '@tiptap/extension-bullet-list':
     specifier: ^2.10.4
     version: 2.10.4(@tiptap/core@2.10.4)
+  '@tiptap/extension-character-count':
+    specifier: ^2.11.0
+    version: 2.11.0(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4)
   '@tiptap/extension-code':
     specifier: ^2.10.4
     version: 2.10.4(@tiptap/core@2.10.4)
@@ -167,6 +173,9 @@ dependencies:
   ts-pattern:
     specifier: ^5.5.0
     version: 5.5.0
+  use-sound:
+    specifier: ^4.0.3
+    version: 4.0.3(react@18.3.1)
   wouter:
     specifier: ^3.3.5
     version: 3.3.5(react@18.3.1)
@@ -707,6 +716,18 @@ packages:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.17.1
+
+  /@number-flow/react@0.4.4(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-m2FW55jnWqiJzKNRETgyxgR7a8x0WYIZ1uyiIW8C5g6HyjIynryJJop1mEcmHG6OyNePkcb8OQIcjKlV5TfHAw==}
+    peerDependencies:
+      react: ^18 || ^19
+      react-dom: ^18 || ^19
+    dependencies:
+      esm-env: 1.2.1
+      number-flow: 0.4.2
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    dev: false
 
   /@pkgjs/parseargs@0.11.0:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -1691,6 +1712,16 @@ packages:
       '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
     dev: false
 
+  /@tiptap/extension-character-count@2.11.0(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4):
+    resolution: {integrity: sha512-WbqVr1QY62vxpmDJP5k3bwyzoHha1sZTs0xj3L+4s1j/SB2A7tAlFdcNPPwfbPOINHQgomSAyClfTyd4Gor7HA==}
+    peerDependencies:
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
+    dependencies:
+      '@tiptap/core': 2.10.4(@tiptap/pm@2.10.4)
+      '@tiptap/pm': 2.10.4
+    dev: false
+
   /@tiptap/extension-code-block@2.10.4(@tiptap/core@2.10.4)(@tiptap/pm@2.10.4):
     resolution: {integrity: sha512-qS4jnbJqghNMT2+B+GQ807ATgqkL9OQ//NlL+ZwVSe+DPDduNA9B6IB9SrWENDfOnzekpi7kcEcm+RenELARRQ==}
     peerDependencies:
@@ -2288,6 +2319,10 @@ packages:
     engines: {node: '>=10'}
     dev: false
 
+  /esm-env@1.2.1:
+    resolution: {integrity: sha512-U9JedYYjCnadUlXk7e1Kr+aENQhtUaoaV9+gZm1T8LC/YBAPJx3NSPIAurFOC0U5vrdSevnUJS2/wUVxGwPhng==}
+    dev: false
+
   /fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
     dev: false
@@ -2398,6 +2433,10 @@ packages:
     engines: {node: '>= 0.4'}
     dependencies:
       function-bind: 1.1.2
+
+  /howler@2.2.4:
+    resolution: {integrity: sha512-iARIBPgcQrwtEr+tALF+rapJ8qSc+Set2GJQl7xT1MQzWaVkFebdJhR3alVlSiUf5U7nAANKuj3aWpwerocD5w==}
+    dev: false
 
   /invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
@@ -2607,6 +2646,12 @@ packages:
     resolution: {integrity: sha512-bdok/XvKII3nUpklnV6P2hxtMNrCboOjAcyBuQnWEhO665FwrSNRxU+AqpsyvO6LgGYPspN+lu5CLtw4jPRKNA==}
     engines: {node: '>=0.10.0'}
     dev: true
+
+  /number-flow@0.4.2:
+    resolution: {integrity: sha512-YLN73/m8BUU4r/6mq9zqLdpFKt3LSPPRectOECheA9jtNWF4PP8EIz0+Z1giqu/x9nS86KnKwwouLXXiqnjhQQ==}
+    dependencies:
+      esm-env: 1.2.1
+    dev: false
 
   /object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -3231,6 +3276,15 @@ packages:
       detect-node-es: 1.1.0
       react: 18.3.1
       tslib: 2.8.1
+    dev: false
+
+  /use-sound@4.0.3(react@18.3.1):
+    resolution: {integrity: sha512-L205pEUFIrLsGYsCUKHQVCt0ajs//YQOFbEQeNwaWaqQj3y3st4SuR+rvpMHLmv8hgTcfUFlvMQawZNI3OE18w==}
+    peerDependencies:
+      react: '>=16.8'
+    dependencies:
+      howler: 2.2.4
+      react: 18.3.1
     dev: false
 
   /use-sync-external-store@1.2.2(react@18.3.1):

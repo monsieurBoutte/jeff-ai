@@ -1,10 +1,12 @@
 import { useEffect, useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import useSound from 'use-sound';
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import { listen } from '@tauri-apps/api/event';
 import { register } from '@tauri-apps/plugin-global-shortcut';
 
 import { DocumentEditor } from '@/components/document-editor';
+import recordSfx from '@/assets/cassette_tape_record.mp3';
 
 interface TranscriptionEvent {
   payload: string;
@@ -12,6 +14,7 @@ interface TranscriptionEvent {
 
 export default function Home() {
   const [transcription, setTranscription] = useState<string>('');
+  const [play] = useSound(recordSfx);
 
   useEffect(() => {
     const unlisten = listen(
@@ -38,6 +41,7 @@ export default function Home() {
     try {
       const token = await getToken();
       await register('CommandOrControl+Shift+J', (event) => {
+        play();
         console.log('event', event.state);
         if (event.state === 'Pressed') {
           invoke('start_recording');

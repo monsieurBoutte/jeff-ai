@@ -1,6 +1,9 @@
 import { Voicemail } from 'lucide-react';
+import useSound from 'use-sound';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import recordSfx from '@/assets/cassette_tape_record.mp3';
 
 interface MicrophoneToggleProps {
   isActive: boolean;
@@ -8,11 +11,15 @@ interface MicrophoneToggleProps {
 }
 
 export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
+  const [play] = useSound(recordSfx);
   return (
     <Button
       variant="outline"
       size="sm"
-      onClick={onClick}
+      onClick={() => {
+        onClick();
+        play();
+      }}
       className={cn(
         'transition-colors',
         isActive &&
