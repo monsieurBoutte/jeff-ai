@@ -76,6 +76,10 @@ pub fn run() {
                 let payload = event.payload();
                 let trimmed_payload = payload.trim_matches('"');
 
+                // get previous clipboard content
+                let previous_clipboard = app_handle.clipboard().read_text().unwrap_or_default();
+                log::info!("Previous clipboard content: {:?}", previous_clipboard);
+
                 // Get the trimmed payload and write to clipboard
                 if let Err(e) = app_handle.clipboard().write_text(trimmed_payload) {
                     log::error!("Error writing to clipboard: {:?}", e);
@@ -84,6 +88,11 @@ pub fn run() {
 
                 // paste the text
                 simulate_paste();
+
+                // write the previous clipboard content back to the clipboard
+                if let Err(e) = app_handle.clipboard().write_text(previous_clipboard) {
+                    log::error!("Error writing to clipboard: {:?}", e);
+                }
             });
 
             Ok(())

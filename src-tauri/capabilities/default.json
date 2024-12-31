@@ -24,13 +24,7 @@
           "url": "https://*.jeffai.kinde.com/*"
         },
         {
-          "url": "http://localhost:8787/*"
-        },
-        {
           "url": "https://jeffai.kinde.com/oauth2/token"
-        },
-        {
-          "url": "https://*.api.groq.com/openai/v1/chat/completions/*"
         },
         {
           "url": "wss://*.deepgram.com/*"

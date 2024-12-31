@@ -165,11 +165,7 @@ pub async fn stop_recording(
 
                 state
                     .app_handle
-                    .emit_to(
-                        EventTarget::any(),
-                        event_name,
-                        Some(transcript),
-                    )
+                    .emit_to(EventTarget::any(), event_name, Some(transcript))
                     .map_err(|e| e.to_string())?;
             }
             Err(e) => {
