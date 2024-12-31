@@ -16,7 +16,7 @@ export default function Settings() {
       </div>
       <div className="mt-4">
         {!isLoading && !isAuthenticated ? (
-          <>
+          <div className="flex flex-row gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -35,7 +35,7 @@ export default function Settings() {
               <UserPlus />
               <span>Register</span>
             </Button>
-          </>
+          </div>
         ) : isAuthenticated ? (
           <Button
             variant="outline"
