@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import { listen } from '@tauri-apps/api/event';
+import { register } from '@tauri-apps/plugin-global-shortcut';
 
 import { DocumentEditor } from '@/components/document-editor';
 
@@ -13,7 +14,7 @@ export default function Home() {
   const [transcription, setTranscription] = useState<string>('');
 
   useEffect(() => {
-    const unsubscribe = listen(
+    const unlisten = listen(
       'transcription-complete',
       (event: TranscriptionEvent) => {
         console.log('transcription-complete', event);
@@ -21,13 +22,39 @@ export default function Home() {
       }
     );
 
-    // Clean up the listener when component unmounts
+    // Clean up the listener when the component unmounts
     return () => {
-      unsubscribe.then((unlisten) => unlisten());
+      unlisten.then((unlistenFn) => unlistenFn());
     };
   }, []);
 
   const { isAuthenticated, getToken, getUser } = KindeAuth.useKindeAuth();
+
+  const handleShortcut = useCallback(async () => {
+    if (!isAuthenticated || !getToken || !getUser) {
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      await register('CommandOrControl+Shift+J', (event) => {
+        console.log('event', event.state);
+        if (event.state === 'Pressed') {
+          invoke('start_recording');
+        }
+
+        if (event.state === 'Released') {
+          invoke('stop_recording', { token, refine: true });
+        }
+      });
+    } catch (error) {
+      console.error('Error registering shortcut:', error);
+    }
+  }, [isAuthenticated, getToken]);
+
+  useEffect(() => {
+    handleShortcut();
+  }, [handleShortcut]);
 
   const captureUser = useCallback(async () => {
     if (!isAuthenticated || !getToken || !getUser) {

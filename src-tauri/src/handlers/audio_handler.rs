@@ -101,6 +101,7 @@ pub async fn stop_recording(
     state: tauri::State<'_, AppState>,
     _app_handle: tauri::AppHandle,
     token: String,
+    refine: bool,
 ) -> Result<(), String> {
     {
         let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
@@ -137,7 +138,7 @@ pub async fn stop_recording(
     if let Some(file_path) = audio_file_path {
         log::info!("Transcribing audio file: {}", file_path);
 
-        let transcription_result = transcribe_audio(token, file_path.clone()).await;
+        let transcription_result = transcribe_audio(token, file_path.clone(), refine).await;
 
         // Clean up and verify temp file deletion
         if let Ok(mut temp_file_guard) = state.temp_file.lock() {
@@ -156,11 +157,17 @@ pub async fn stop_recording(
 
         match transcription_result {
             Ok(transcript) => {
+                let event_name = if refine {
+                    "refined-transcription-complete"
+                } else {
+                    "transcription-complete"
+                };
+
                 state
                     .app_handle
                     .emit_to(
                         EventTarget::any(),
-                        "transcription-complete",
+                        event_name,
                         Some(transcript),
                     )
                     .map_err(|e| e.to_string())?;
@@ -177,7 +184,11 @@ pub async fn stop_recording(
     Ok(())
 }
 
-async fn transcribe_audio(token: String, file_path: String) -> Result<String, String> {
+async fn transcribe_audio(
+    token: String,
+    file_path: String,
+    refine: bool,
+) -> Result<String, String> {
     let start_time = Instant::now();
     log::info!("Starting transcription for file: {}", file_path);
 
@@ -199,7 +210,7 @@ async fn transcribe_audio(token: String, file_path: String) -> Result<String, St
     let form = Form::new()
         .part("file", part)
         // todo: let the user adjust this in settings
-        .text("refine", "false");
+        .text("refine", refine.to_string());
 
     log::info!("Sending transcription request");
 
