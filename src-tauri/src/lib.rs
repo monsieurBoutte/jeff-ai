@@ -114,6 +114,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
+            get_all_refinements,
             refine_text,
             convert_to_markdown,
             fetch_tasks,

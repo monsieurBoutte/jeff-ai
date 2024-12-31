@@ -41,13 +41,13 @@ export default function Home() {
       const token = await getToken();
       await register('CommandOrControl+Shift+J', (event) => {
         if (event.state === 'Pressed') {
-          invoke('start_recording');
           play();
+          invoke('start_recording');
         }
 
         if (event.state === 'Released') {
-          invoke('stop_recording', { token, refine: true });
           play();
+          invoke('stop_recording', { token, refine: true });
         }
       });
     } catch (error) {
