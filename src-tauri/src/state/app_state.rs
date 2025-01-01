@@ -24,4 +24,9 @@ pub struct AppState {
     pub recording_sender: Arc<Mutex<Option<Sender<()>>>>,
     pub app_handle: tauri::AppHandle,
     pub temp_file: Arc<Mutex<Option<NamedTempFile>>>,
+    pub original_volume: Arc<Mutex<Option<f32>>>,
+    #[cfg(target_os = "macos")]
+    pub audio_device_id: Arc<Mutex<Option<coreaudio::sys::AudioDeviceID>>>,
+    #[cfg(not(target_os = "macos"))]
+    pub audio_device_id: Arc<Mutex<Option<u32>>>,
 }

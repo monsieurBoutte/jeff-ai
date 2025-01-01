@@ -65,6 +65,8 @@ pub fn run() {
                 audio_writer: Mutex::new(None),
                 recording_sender: Arc::new(Mutex::new(None)),
                 app_handle: app.handle().clone(),
+                original_volume: Arc::new(Mutex::new(None)),
+                audio_device_id: Arc::new(Mutex::new(None)),
             };
             app.manage(app_state);
 

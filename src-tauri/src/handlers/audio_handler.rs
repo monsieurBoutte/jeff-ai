@@ -1,4 +1,4 @@
-use crate::audio::{wav_spec_from_config, write_input_data};
+use crate::audio::{wav_spec_from_config, write_input_data, get_default_output_device, get_device_volume, set_device_volume};
 use crate::state::AppState;
 use crate::state::RecordingState;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -90,6 +90,17 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
             *recording_state = RecordingState::Recording;
 
             log::info!("Starting recording");
+
+            // Get and store the default output device
+            let device_id = get_default_output_device().map_err(|e| format!("Failed to get default output device: {}", e))?;
+            *state.audio_device_id.lock().map_err(|e| e.to_string())? = Some(device_id);
+
+            // Get and store the current volume
+            let current_volume = get_device_volume(device_id).map_err(|e| format!("Failed to get device volume: {}", e))?;
+            *state.original_volume.lock().map_err(|e| e.to_string())? = Some(current_volume);
+
+            // Set volume to 0
+            set_device_volume(device_id, 0.0).map_err(|e| format!("Failed to set device volume: {}", e))?;
 
             // Create temp file with .wav extension
             let temp_file = Builder::new()
@@ -183,6 +194,15 @@ pub async fn stop_recording(
 
     log::info!("Stopping recording");
     state.is_recording.store(false, Ordering::SeqCst);
+
+    // Restore the original volume
+    if let (Some(device_id), Some(original_volume)) = (
+        *state.audio_device_id.lock().map_err(|e| e.to_string())?,
+        *state.original_volume.lock().map_err(|e| e.to_string())?,
+    ) {
+        set_device_volume(device_id, original_volume)
+            .map_err(|e| format!("Failed to restore device volume: {}", e))?;
+    }
 
     if let Some(sender) = state
         .recording_sender
