@@ -103,7 +103,7 @@ pub fn fade_volume(device_id: AudioDeviceID, from: f32, to: f32, steps: u32, del
     }
 }
 
-// No-op implementations for non-macOS platforms
+// For non-macOS platforms
 #[cfg(not(target_os = "macos"))]
 pub fn get_default_output_device() -> Result<u32, i32> {
     Ok(0)
@@ -115,6 +115,7 @@ pub fn get_device_volume(_device_id: u32) -> Result<f32, i32> {
 }
 
 #[cfg(not(target_os = "macos"))]
+#[allow(dead_code)]
 pub fn set_device_volume(_device_id: u32, _volume: f32) -> Result<(), i32> {
     Ok(())
 }
