@@ -1,5 +1,5 @@
 use crate::audio::{
-    wav_spec_from_config, write_input_data, get_default_output_device, 
+    wav_spec_from_config, write_input_data, get_default_output_device,
     get_device_volume, fade_volume
 };
 use crate::state::AppState;
@@ -72,10 +72,17 @@ async fn transcribe_audio(
     log::info!("Transcription response: {}", json_value);
 
     // Extract the transcription from the response
-    let transcription = json_value["transcription"]
-        .as_str()
-        .ok_or_else(|| "No transcription in response".to_string())?
-        .to_string();
+    let transcription = if refine {
+        json_value["refined"]
+            .as_str()
+            .ok_or_else(|| "No refined transcription in response".to_string())?
+            .to_string()
+    } else {
+        json_value["transcription"]
+            .as_str()
+            .ok_or_else(|| "No transcription in response".to_string())?
+            .to_string()
+    };
 
     let duration = start_time.elapsed();
     log::info!("Transcription completed in {:?}", duration);
@@ -255,6 +262,8 @@ pub async fn stop_recording(
                 }
             }
         }
+
+        log::info!("Transcription result: {:?}", transcription_result);
 
         match transcription_result {
             Ok(transcript) => {
