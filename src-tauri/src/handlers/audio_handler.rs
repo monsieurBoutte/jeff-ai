@@ -10,7 +10,7 @@ use reqwest::multipart::{Form, Part};
 use serde_json::Value;
 use std::sync::mpsc::channel;
 use std::sync::{atomic::Ordering, Arc, Mutex};
-use std::time::Instant;
+use std::{thread, time::{Instant, Duration}};
 use tauri::{Emitter, EventTarget};
 use tempfile::Builder;
 use tokio::fs::File;
@@ -108,6 +108,9 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
             // Get and store the current volume
             let current_volume = get_device_volume(device_id).map_err(|e| format!("Failed to get device volume: {}", e))?;
             *state.original_volume.lock().map_err(|e| e.to_string())? = Some(current_volume);
+
+             // Introduce a small delay so that our sound effect is heard
+            thread::sleep(Duration::from_millis(300));
 
             // Set volume to 0
             fade_volume(device_id, current_volume, 0.0, 6, 100); // 6 steps, 100ms between steps
