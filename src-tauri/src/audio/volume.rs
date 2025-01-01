@@ -1,6 +1,6 @@
 #[cfg(target_os = "macos")]
 use coreaudio::sys::*;
-use std::mem::{size_of, size_of_val};
+use std::mem::size_of;
 use std::ptr::null;
 use std::os::raw::c_void;
 
@@ -87,6 +87,16 @@ pub fn set_device_volume(device_id: AudioDeviceID, volume: f32) -> Result<(), OS
         Ok(())
     } else {
         Err(status)
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn fade_volume(device_id: AudioDeviceID, from: f32, to: f32, steps: u32, delay_ms: u64) {
+    let step_size = (from - to) / steps as f32;
+    for i in 1..=steps {
+        let volume = from - (step_size * i as f32);
+        let _ = set_device_volume(device_id, volume);
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
     }
 }
 
