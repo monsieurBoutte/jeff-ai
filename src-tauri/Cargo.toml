@@ -37,11 +37,11 @@ hound = "3.5.1"
 bytes = "1.9.0"
 crossbeam = "0.8.4"
 tempfile = "3.10.1"
-rdev = "0.5.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 coreaudio-rs = "0.12.1"
 
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-global-shortcut = "2"
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+rdev = "0.5.3"
+tauri-plugin-global-shortcut = "2.0.0-beta"
 tauri-plugin-updater = "2"

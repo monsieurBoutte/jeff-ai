@@ -13,10 +13,19 @@ use state::{AppState, RecordingState};
 use tauri::Manager;
 use tauri::Listener;
 use tauri_plugin_clipboard_manager::ClipboardExt;
-
-use rdev::{simulate, EventType, Key, SimulateError};
 use std::{thread, time::Duration};
 
+// Only include rdev on desktop platforms
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use rdev::{simulate, EventType, Key, SimulateError};
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use tauri_plugin_global_shortcut;
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use tauri_plugin_updater;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn simulate_paste() {
     // Helper function to send a key event
     fn send(event_type: EventType) {
@@ -46,15 +55,30 @@ fn simulate_paste() {
     }
 }
 
+// Add a no-op version for mobile platforms
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn simulate_paste() {
+    // No-op on mobile platforms
+    log::warn!("Paste simulation is not supported on mobile platforms");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
     // Load environment variables from .env file
     dotenv().ok();
 
+    let mut builder = tauri::Builder::default();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    // Conditionally add the plugins
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    {
+        builder = builder
+            .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+            .plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    builder
         .setup(|app| {
             let app_state = AppState {
                 user: Mutex::new(None),
@@ -111,7 +135,6 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
