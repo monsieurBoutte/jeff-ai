@@ -90,10 +90,18 @@ jobs:
       - name: Verify Certificate
         if: runner.os == 'macOS'
         run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
-          echo "Certificate imported."
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain)
+          echo "Available certificates:"
+          echo "$CERT_INFO"
+
+          if [[ "$CERT_INFO" =~ \"([^\"]+)\" ]]; then
+            CERT_ID="${BASH_REMATCH[1]}"
+            echo "Found certificate ID: $CERT_ID"
+            echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+          else
+            echo "No valid certificate found"
+            exit 1
+          fi
 
       - name: build tauri app
         shell: bash
