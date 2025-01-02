@@ -91,17 +91,27 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain)
-          echo "Available certificates:"
-          echo "$CERT_INFO"
 
           if [[ "$CERT_INFO" =~ \"([^\"]+)\" ]]; then
             CERT_ID="${BASH_REMATCH[1]}"
-            echo "Found certificate ID: $CERT_ID"
             echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           else
             echo "No valid certificate found"
             exit 1
           fi
+
+      - name: Update signing identity
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          # Backup original config
+          cp src-tauri/tauri.conf.json src-tauri/tauri.conf.json.bak
+
+          # Replace signingIdentity with the APPLE_SIGNING_IDENTITY
+          jq --arg cert "$APPLE_SIGNING_IDENTITY" '.bundle.macOS.signingIdentity = $cert' \
+            src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
 
       - name: build tauri app
         shell: bash
