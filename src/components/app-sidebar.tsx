@@ -63,7 +63,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent className="flex flex-col h-full">
         <SidebarGroup>
-          <SidebarGroupLabel>Jeff AI</SidebarGroupLabel>
+          <SidebarGroupLabel>AI Jeff</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
