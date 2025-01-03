@@ -1,4 +1,5 @@
 {
+  "$schema": "../gen/schemas/capabilities.json",
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
