@@ -44,5 +44,7 @@
 	<string>Request microphone access for voice input</string>
 	<key>NSPasteboardUsageDescription</key>
 	<string>Allow clipboard access to copy and paste text</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Request speech recognition for voice input</string>
 </dict>
 </plist>
