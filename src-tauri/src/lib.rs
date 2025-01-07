@@ -83,6 +83,9 @@ pub fn run() {
             let app_state = AppState {
                 user: Mutex::new(None),
                 existing_user: Mutex::new(None),
+                system_tap_id: Mutex::new(None),
+                system_agg_device_id: Mutex::new(None),
+                thread_completed: Arc::new(Mutex::new(false)),
                 temp_file: Arc::new(Mutex::new(None)),
                 recording_state: Mutex::new(RecordingState::Stopped),
                 is_recording: Arc::new(AtomicBool::new(false)),
@@ -146,7 +149,9 @@ pub fn run() {
             capture_user,
             set_user,
             start_recording,
-            stop_recording
+            stop_recording,
+            start_recording_system_output,
+            stop_recording_system_output
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -20,6 +20,8 @@ pub struct AppState {
     pub existing_user: Mutex<Option<ExistingUser>>,
     pub recording_state: Mutex<RecordingState>,
     pub is_recording: Arc<AtomicBool>,
+    pub system_tap_id: Mutex<Option<u32>>,
+    pub system_agg_device_id: Mutex<Option<u32>>,
     pub audio_writer: Mutex<Option<Arc<Mutex<Option<(WavWriter<BufWriter<File>>, String)>>>>>,
     pub recording_sender: Arc<Mutex<Option<Sender<()>>>>,
     pub app_handle: tauri::AppHandle,
@@ -29,4 +31,5 @@ pub struct AppState {
     pub audio_device_id: Arc<Mutex<Option<coreaudio::sys::AudioDeviceID>>>,
     #[cfg(not(target_os = "macos"))]
     pub audio_device_id: Arc<Mutex<Option<u32>>>,
+    pub thread_completed: Arc<Mutex<bool>>,
 }

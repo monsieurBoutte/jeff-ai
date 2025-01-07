@@ -21,10 +21,18 @@ pub fn write_input_data(
     match writer.lock() {
         Ok(mut guard) => {
             if let Some((writer, _)) = guard.as_mut() {
+                log::debug!("Writing {} samples to WAV file", input.len());
                 for &sample in input.iter() {
                     let converted_sample = (sample * i16::MAX as f32) as i16;
-                    writer.write_sample(converted_sample).unwrap();
+                    match writer.write_sample(converted_sample) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            log::error!("Failed to write sample: {}", e);
+                            return;
+                        }
+                    }
                 }
+                log::debug!("Successfully wrote all samples");
             } else {
                 log::error!("WAV writer is not available");
             }

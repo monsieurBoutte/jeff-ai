@@ -2575,12 +2575,17 @@ name = "jeff-ai"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "core-foundation 0.10.0",
  "coreaudio-rs 0.12.1",
+ "coreaudio-sys",
  "cpal",
  "crossbeam",
  "dotenv",
  "hound",
  "log",
+ "objc",
+ "objc-foundation",
+ "objc_id",
  "rdev",
  "reqwest 0.11.27",
  "serde",
@@ -2598,6 +2603,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tempfile",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
