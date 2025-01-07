@@ -1,45 +1,25 @@
-import { setup } from 'xstate';
+import { createMachine } from 'xstate';
 
-export type ModeEvent =
-  | { type: 'TOGGLE_REWRITE' }
-  | { type: 'TOGGLE_RECORDER' };
-
-export const modeMachine = setup({
-  types: {
-    events: {} as ModeEvent
-  }
-}).createMachine({
+export const modeMachine = createMachine({
   id: 'mode',
   initial: 'idle',
   states: {
     idle: {
       on: {
-        TOGGLE_REWRITE: {
-          target: 'rewrite'
-        },
-        TOGGLE_RECORDER: {
-          target: 'recorder'
-        }
-      }
-    },
-    rewrite: {
-      on: {
-        TOGGLE_REWRITE: {
-          target: 'idle'
-        },
-        TOGGLE_RECORDER: {
-          target: 'recorder'
-        }
+        TOGGLE_RECORDER: 'recorder',
+        TOGGLE_SYSTEM_OUTPUT: 'systemOutput'
       }
     },
     recorder: {
       on: {
-        TOGGLE_REWRITE: {
-          target: 'rewrite'
-        },
-        TOGGLE_RECORDER: {
-          target: 'idle'
-        }
+        TOGGLE_RECORDER: 'idle',
+        TOGGLE_SYSTEM_OUTPUT: 'systemOutput'
+      }
+    },
+    systemOutput: {
+      on: {
+        TOGGLE_SYSTEM_OUTPUT: 'idle',
+        TOGGLE_RECORDER: 'recorder'
       }
     }
   }

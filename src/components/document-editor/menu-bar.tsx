@@ -23,6 +23,7 @@ import { Editor } from '@tiptap/react';
 import * as motion from 'motion/react-client';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
 
+import { SystemOutputToggle } from '@/components/system-output-toggle';
 import { modeMachine } from '@/machines/mode-machine';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -162,6 +163,19 @@ export const MenuBar = ({ editor }: MenuBarProps) => {
     }
   }, [send, state, isAuthenticated, getToken]);
 
+  const handleSystemOutputToggle = useCallback(async () => {
+    if (!isAuthenticated || !getToken) {
+      return;
+    }
+    const token = await getToken();
+    send({ type: 'TOGGLE_SYSTEM_OUTPUT' });
+    if (state.matches('systemOutput')) {
+      invoke('stop_recording_system_output', { token, refine: false });
+    } else {
+      invoke('start_recording_system_output');
+    }
+  }, [send, state, isAuthenticated, getToken]);
+
   return (
     <div className="flex flex-col mb-2 gap-2">
       <div className="flex gap-2 items-center justify-between">
@@ -180,6 +194,10 @@ export const MenuBar = ({ editor }: MenuBarProps) => {
           <MicrophoneToggle
             isActive={state.matches('recorder')}
             onClick={handleMicToggle}
+          />
+          <SystemOutputToggle
+            onClick={handleSystemOutputToggle}
+            isActive={state.matches('systemOutput')}
           />
         </div>
 
