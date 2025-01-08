@@ -83,7 +83,6 @@ pub fn run() {
             let app_state = AppState {
                 user: Mutex::new(None),
                 existing_user: Mutex::new(None),
-                system_tap_id: Mutex::new(None),
                 system_agg_device_id: Mutex::new(None),
                 thread_completed: Arc::new(Mutex::new(false)),
                 temp_file: Arc::new(Mutex::new(None)),
