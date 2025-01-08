@@ -1,7 +1,8 @@
 use crate::audio::{
     wav_spec_from_config, write_input_data, get_default_output_device,
     get_device_volume, fade_volume, aggregate_device::create_aggregate_device,
-    aggregate_device::remove_aggregate_device
+    aggregate_device::remove_aggregate_device, helpers::get_tap_stream_audio_description,
+    helpers::set_default_device, helpers::check_device_exists
 };
 use crate::state::AppState;
 use crate::state::RecordingState;
@@ -17,7 +18,6 @@ use tempfile::Builder;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use cpal::HostId;
-use crate::audio::helpers::check_device_exists;
 
 async fn transcribe_audio(
     user_id: String,
@@ -39,9 +39,6 @@ async fn transcribe_audio(
 
     // Log the file size and first few bytes for debugging
     log::info!("Audio file size: {} bytes", buffer.len());
-    if !buffer.is_empty() {
-        log::info!("First few bytes: {:?}", &buffer[..std::cmp::min(10, buffer.len())]);
-    }
 
     // Create the multipart form
     let part = Part::bytes(buffer)
@@ -187,28 +184,10 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
                         &config.into(),
                         move |data: &[f32], _| {
                             if recording_flag_stream.load(Ordering::SeqCst) {
-                                // Lower threshold for signal detection
                                 let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
-                                let has_signal = max_amplitude > 0.0000001; // More sensitive threshold
-
-                                // Log every 50th buffer, including first buffer
-                                static mut BUFFER_COUNT: usize = 0;
-                                unsafe {
-                                    BUFFER_COUNT += 1;
-                                    if BUFFER_COUNT == 1 || BUFFER_COUNT % 50 == 0 {
-                                        log::info!(
-                                            "Audio buffer #{} - Length: {}, Max amplitude: {:.10}, Has signal: {}, First 3 samples: {:?}",
-                                            BUFFER_COUNT,
-                                            data.len(),
-                                            max_amplitude,
-                                            has_signal,
-                                            &data.iter().take(3).collect::<Vec<&f32>>()
-                                        );
-                                    }
-                                }
+                                let has_signal = max_amplitude > 0.0000001;
 
                                 if has_signal {
-                                    log::debug!("Writing audio buffer with {} samples", data.len());
                                     write_input_data(data, &writer_clone);
                                 }
                             }
@@ -401,7 +380,7 @@ pub async fn start_recording_system_output(state: tauri::State<'_, AppState>) ->
                 }
             }
 
-            if !crate::audio::helpers::check_device_exists(&default_output_device_id) {
+            if !check_device_exists(&default_output_device_id) {
                 return Err(format!("Default device \"{}\" not found in CoreAudio!", default_output_device_id));
             }
 
@@ -436,46 +415,13 @@ pub async fn start_recording_system_output(state: tauri::State<'_, AppState>) ->
                 create_result.tap_id
             );
 
-            // Add verification step
-            log::info!("Verifying aggregate device creation...");
-            if let Ok(agg_device) = host.devices()
-                .map_err(|e| e.to_string())?
-                .find(|d| d.name().map(|name| name == agg_device_name).unwrap_or(false))
-                .ok_or("Aggregate device not found after creation")
-            {
-                log::info!("Aggregate device configurations:");
-                if let Ok(input_configs) = agg_device.supported_input_configs() {
-                    log::info!("Input configurations:");
-                    for config in input_configs {
-                        log::info!("  Rate: {:?}-{:?}, Channels: {}, Format: {:?}",
-                            config.min_sample_rate(),
-                            config.max_sample_rate(),
-                            config.channels(),
-                            config.sample_format()
-                        );
-                    }
-                }
-                if let Ok(output_configs) = agg_device.supported_output_configs() {
-                    log::info!("Output configurations:");
-                    for config in output_configs {
-                        log::info!("  Rate: {:?}-{:?}, Channels: {}, Format: {:?}",
-                            config.min_sample_rate(),
-                            config.max_sample_rate(),
-                            config.channels(),
-                            config.sample_format()
-                        );
-                    }
-                }
-            } else {
-                log::warn!("Could not verify aggregate device configuration");
-            }
-
             // Add a longer delay to allow the device to initialize
             log::info!("Waiting for device to initialize...");
+            // todo test shorter delay
             std::thread::sleep(std::time::Duration::from_millis(1000));
 
             // Set the aggregate device as the default output device
-            if let Err(e) = crate::audio::helpers::set_default_device(agg_device_name) {
+            if let Err(e) = set_default_device(agg_device_name) {
                 log::error!("Failed to set aggregate device as default: {}", e);
                 // Clean up the aggregate device
                 remove_aggregate_device(create_result.aggregate_device_id)
@@ -496,16 +442,16 @@ pub async fn start_recording_system_output(state: tauri::State<'_, AppState>) ->
                 .ok_or("Unable to find newly created aggregate device via CPAL")?;
 
             // Log the available input configs
-            log::info!("Available input configs for aggregate device:");
-            for config in aggregate_device.supported_input_configs().map_err(|e| e.to_string())? {
-                log::info!(
-                    "Sample rate: {:?}-{:?}, Channels: {}, Format: {:?}",
-                    config.min_sample_rate(),
-                    config.max_sample_rate(),
-                    config.channels(),
-                    config.sample_format()
-                );
-            }
+            // log::info!("Available input configs for aggregate device:");
+            // for config in aggregate_device.supported_input_configs().map_err(|e| e.to_string())? {
+            //     log::info!(
+            //         "Sample rate: {:?}-{:?}, Channels: {}, Format: {:?}",
+            //         config.min_sample_rate(),
+            //         config.max_sample_rate(),
+            //         config.channels(),
+            //         config.sample_format()
+            //     );
+            // }
 
             // Use a supported configuration
             let config = aggregate_device
@@ -588,26 +534,9 @@ pub async fn start_recording_system_output(state: tauri::State<'_, AppState>) ->
                                 let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
                                 let has_signal = max_amplitude > 0.0000001;
 
-                                static mut BUFFER_COUNT: usize = 0;
-                                unsafe {
-                                    BUFFER_COUNT += 1;
-                                    // Log more details for the first 5 buffers and then every 50th
-                                    if BUFFER_COUNT <= 5 || BUFFER_COUNT % 50 == 0 {
-                                        let non_zero_count = data.iter().filter(|&&x| x != 0.0).count();
-                                        log::info!(
-                                            "Audio buffer #{} - Length: {}, Max amplitude: {:.10}, Non-zero samples: {}, Has signal: {}, First 5 samples: {:?}",
-                                            BUFFER_COUNT,
-                                            data.len(),
-                                            max_amplitude,
-                                            non_zero_count,
-                                            has_signal,
-                                            &data.iter().take(5).collect::<Vec<&f32>>()
-                                        );
-                                    }
+                                if has_signal {
+                                    write_input_data(data, &writer_clone);
                                 }
-
-                                // Always write the data, even if signal is low
-                                write_input_data(data, &writer_clone);
                             }
                         },
                         move |err| {
@@ -647,6 +576,18 @@ pub async fn start_recording_system_output(state: tauri::State<'_, AppState>) ->
                     log::info!("Recording thread completed");
                 }
             });
+
+            if let Ok(tap_format) = get_tap_stream_audio_description(create_result.tap_id) {
+                log::info!(
+                    "Tap device format - Sample rate: {}, Channels: {}, Bits per channel: {}, Format ID: {}",
+                    tap_format.mSampleRate,
+                    tap_format.mChannelsPerFrame,
+                    tap_format.mBitsPerChannel,
+                    tap_format.mFormatID
+                );
+            } else {
+                log::warn!("Could not get tap device audio format");
+            }
 
             Ok(())
         }
@@ -793,7 +734,7 @@ pub async fn stop_recording_system_output(
         .name()
         .map_err(|e| format!("Failed to get original device name: {}", e))?;
 
-    if let Err(e) = crate::audio::helpers::set_default_device(&original_device_name) {
+    if let Err(e) = set_default_device(&original_device_name) {
         log::warn!("Failed to restore original output device: {}", e);
     }
 

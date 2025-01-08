@@ -12,8 +12,6 @@ use coreaudio_sys::{
   kCFStringEncodingUTF8, AudioDeviceID, AudioObjectGetPropertyData, AudioObjectPropertyAddress,
   AudioStreamBasicDescription, CFStringGetCString, CFStringGetCStringPtr, CFStringRef,
 };
-use core_foundation::base::TCFType;
-use core_foundation::string::CFString;
 
 pub fn get_device_uid(device_id: AudioDeviceID) -> Result<String, coreaudio::Error> {
   let property_address = AudioObjectPropertyAddress {

@@ -50,12 +50,22 @@ pub fn create_aggregate_device(
 
     let aggregate_device_name = CFString::new(aggregate_device_name);
     let aggregate_device_uid = CFString::new(aggregate_device_uid);
+    let input_uid_cfstr = CFString::new(&input_uid);
     let output_uid_cfstr = CFString::new(&output_uid);
 
-    let sub_device_dict = CFDictionary::from_CFType_pairs(&[(
+    // Create dictionaries for both input and output devices
+    let input_device_dict = CFDictionary::from_CFType_pairs(&[(
+        cfstring_from_bytes_with_nul(kAudioSubDeviceUIDKey).as_CFType(),
+        input_uid_cfstr.as_CFType()
+    )]);
+
+    let output_device_dict = CFDictionary::from_CFType_pairs(&[(
         cfstring_from_bytes_with_nul(kAudioSubDeviceUIDKey).as_CFType(),
         output_uid_cfstr.as_CFType()
     )]);
+
+    // Include both devices in the sub-device list
+    let sub_device_list = CFArray::from_CFTypes(&[input_device_dict, output_device_dict]);
 
     let tap_uuid_string = uuid_nsstring_to_cfstring(tap_description.get_uuid());
 
@@ -71,9 +81,6 @@ pub fn create_aggregate_device(
             tap_uuid_string.as_CFType(),
         ),
     ]);
-
-    // Sub-device list
-    let sub_device_list = CFArray::from_CFTypes(&[sub_device_dict]);
 
     let tap_list = CFArray::from_CFTypes(&[tap_device_dict]);
 

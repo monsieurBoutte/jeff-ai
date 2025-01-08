@@ -21,7 +21,6 @@ pub fn write_input_data(
     match writer.lock() {
         Ok(mut guard) => {
             if let Some((writer, _)) = guard.as_mut() {
-                log::debug!("Writing {} samples to WAV file", input.len());
                 for &sample in input.iter() {
                     let converted_sample = (sample * i16::MAX as f32) as i16;
                     match writer.write_sample(converted_sample) {
@@ -32,7 +31,6 @@ pub fn write_input_data(
                         }
                     }
                 }
-                log::debug!("Successfully wrote all samples");
             } else {
                 log::error!("WAV writer is not available");
             }
