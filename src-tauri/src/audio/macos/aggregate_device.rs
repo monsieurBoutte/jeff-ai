@@ -9,7 +9,7 @@ use core_foundation::{
     kAudioSubTapUIDKey, AudioHardwareCreateAggregateDevice, AudioHardwareDestroyAggregateDevice,
     AudioObjectID, CFDictionaryRef,
   };
-  use log::info;
+  use log;
   use objc_foundation::NSString;
   use objc_id::Id;
   use std::ffi::CStr;
@@ -39,7 +39,7 @@ use core_foundation::{
     aggregate_device_name: &str,
     aggregate_device_uid: &str,
   ) -> Result<CreateAggregateDeviceResult, coreaudio::Error> {
-    info!(
+    log::info!(
       "Creating aggregate device with input_uid: {} output_uid: {} name: {} uid: {}",
       input_uid, output_uid, aggregate_device_name, aggregate_device_uid
     );
@@ -124,7 +124,7 @@ use core_foundation::{
     };
 
     if status == 0 {
-      info!(
+      log::info!(
         "Created aggregate device {} with tap {}",
         aggregate_device_id, tap_id
       );
@@ -133,7 +133,7 @@ use core_foundation::{
         tap_id,
       })
     } else {
-      info!(
+      log::info!(
         "AudioHardwareCreateAggregateDevice failed with status: {}",
         coreaudio::Error::from_os_status(status).unwrap_err()
       );
@@ -142,7 +142,7 @@ use core_foundation::{
   }
 
   pub fn remove_aggregate_device(device_id: AudioObjectID) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Removing aggregate device {}", device_id);
+    log::info!("Removing aggregate device {}", device_id);
 
     unsafe {
       let result = AudioHardwareDestroyAggregateDevice(device_id);
