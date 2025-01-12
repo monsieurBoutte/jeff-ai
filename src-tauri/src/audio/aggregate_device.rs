@@ -45,7 +45,7 @@ pub fn create_aggregate_device(
         "Creating aggregate device with input_uid: {} output_uid: {} name: {} uid: {}",
         input_uid, output_uid, aggregate_device_name, aggregate_device_uid
     );
-    let tap_description = CATapDescription::new_stereo_global_tap_but_exclude(vec![]);
+    let tap_description = CATapDescription::new_stereo_global_tap_but_exclude();
     let tap_id = audio_hardware_create_process_tap(&tap_description).expect("Failed to create tap");
 
     let aggregate_device_name = CFString::new(aggregate_device_name);
