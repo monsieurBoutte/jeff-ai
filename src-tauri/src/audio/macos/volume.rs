@@ -3,6 +3,37 @@ use std::mem::size_of;
 use std::ptr::null;
 use std::os::raw::c_void;
 
+pub fn get_default_input_device() -> Result<AudioDeviceID, OSStatus> {
+    let system_object = kAudioObjectSystemObject;
+
+    // Use `kAudioHardwarePropertyDefaultInputDevice` instead of the output version
+    let property_address = AudioObjectPropertyAddress {
+        mSelector: kAudioHardwarePropertyDefaultInputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain,
+    };
+
+    let mut device_id: AudioDeviceID = kAudioObjectUnknown;
+    let mut size: u32 = size_of::<AudioDeviceID>() as u32;
+
+    let status = unsafe {
+        AudioObjectGetPropertyData(
+            system_object,
+            &property_address as *const AudioObjectPropertyAddress,
+            0,
+            null(),
+            &mut size,
+            &mut device_id as *mut AudioDeviceID as *mut c_void,
+        )
+    };
+
+    if status == 0 {
+        Ok(device_id)
+    } else {
+        Err(status)
+    }
+}
+
 pub fn get_default_output_device() -> Result<AudioDeviceID, OSStatus> {
     let system_object = kAudioObjectSystemObject;
 

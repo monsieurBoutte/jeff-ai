@@ -1,72 +1,89 @@
 use std::{
   mem,
-  os::raw::c_void,
-  ptr::{self},
+  os::raw::{c_void, c_char},
+  ptr::{self, null},
+  ffi::CStr,
 };
 
 use coreaudio::audio_unit::macos_helpers::{get_audio_device_ids, get_device_name};
 use coreaudio_sys::{
-  kAudioObjectPropertyElementMaster, kAudioObjectPropertyScopeGlobal, kAudioTapPropertyFormat,
-  AudioDeviceID, AudioObjectGetPropertyData, AudioObjectPropertyAddress,
+  kAudioObjectPropertyElementMaster,
+  kAudioObjectPropertyScopeGlobal,
+  kAudioTapPropertyFormat,
+  kAudioDevicePropertyDeviceUID,
+  kAudioDevicePropertyScopeOutput,
+  kAudioHardwareNoError,
+  kCFStringEncodingUTF8,
+  AudioDeviceID,
+  AudioObjectGetPropertyData,
+  AudioObjectPropertyAddress,
   AudioStreamBasicDescription,
 };
+use core_foundation::string::{CFStringRef, CFStringGetCStringPtr, CFStringGetCString};
 
-// pub fn get_device_uid(device_id: AudioDeviceID) -> Result<String, coreaudio::Error> {
-//   let property_address = AudioObjectPropertyAddress {
-//       mSelector: kAudioDevicePropertyDeviceUID,
-//       mScope: kAudioDevicePropertyScopeOutput,
-//       mElement: kAudioObjectPropertyElementMaster,
-//   };
+#[derive(Debug)]
+pub struct AudioDeviceInfo {
+    pub device_id: AudioDeviceID,
+    pub device_name: String,
+    pub device_uid: String,
+}
 
-//   macro_rules! try_status_or_return {
-//       ($status:expr) => {
-//           if $status != kAudioHardwareNoError as i32 {
-//               return Err(coreaudio::Error::from_os_status($status).unwrap_err());
-//           }
-//       };
-//   }
+pub fn get_device_uid(device_id: AudioDeviceID) -> Result<String, coreaudio::Error> {
+  let property_address = AudioObjectPropertyAddress {
+      mSelector: kAudioDevicePropertyDeviceUID,
+      mScope: kAudioDevicePropertyScopeOutput,
+      mElement: kAudioObjectPropertyElementMaster,
+  };
 
-//   let device_uid: CFStringRef = null();
-//   let data_size = mem::size_of::<CFStringRef>();
-//   let c_str = unsafe {
-//       let status = AudioObjectGetPropertyData(
-//           device_id,
-//           &property_address as *const _,
-//           0,
-//           null(),
-//           &data_size as *const _ as *mut _,
-//           &device_uid as *const _ as *mut _,
-//       );
-//       try_status_or_return!(status);
+  macro_rules! try_status_or_return {
+      ($status:expr) => {
+          if $status != kAudioHardwareNoError as i32 {
+              return Err(coreaudio::Error::from_os_status($status).unwrap_err());
+          }
+      };
+  }
 
-//       let c_string: *const c_char = CFStringGetCStringPtr(device_uid, kCFStringEncodingUTF8);
-//       if c_string.is_null() {
-//           let status = AudioObjectGetPropertyData(
-//               device_id,
-//               &property_address as *const _,
-//               0,
-//               null(),
-//               &data_size as *const _ as *mut _,
-//               &device_uid as *const _ as *mut _,
-//           );
-//           try_status_or_return!(status);
-//           let mut buf: [i8; 255] = [0; 255];
-//           let result = CFStringGetCString(
-//               device_uid,
-//               buf.as_mut_ptr(),
-//               buf.len() as _,
-//               kCFStringEncodingUTF8,
-//           );
-//           if result == 0 {
-//               return Err(coreaudio::Error::from_os_status(result.into()).unwrap_err());
-//           }
-//           let name: &CStr = CStr::from_ptr(buf.as_ptr());
-//           return Ok(name.to_str().unwrap().to_owned());
-//       }
-//       CStr::from_ptr(c_string as *mut _)
-//   };
-//   Ok(c_str.to_string_lossy().into_owned())
-// }
+  let device_uid: CFStringRef = null();
+  let data_size = mem::size_of::<CFStringRef>();
+  let c_str = unsafe {
+      let status = AudioObjectGetPropertyData(
+          device_id,
+          &property_address as *const _,
+          0,
+          null(),
+          &data_size as *const _ as *mut _,
+          &device_uid as *const _ as *mut _,
+      );
+      try_status_or_return!(status);
+
+      let c_string: *const c_char = CFStringGetCStringPtr(device_uid, kCFStringEncodingUTF8);
+      if c_string.is_null() {
+          let status = AudioObjectGetPropertyData(
+              device_id,
+              &property_address as *const _,
+              0,
+              null(),
+              &data_size as *const _ as *mut _,
+              &device_uid as *const _ as *mut _,
+          );
+          try_status_or_return!(status);
+          let mut buf: [i8; 255] = [0; 255];
+          let result = CFStringGetCString(
+              device_uid,
+              buf.as_mut_ptr(),
+              buf.len() as _,
+              kCFStringEncodingUTF8,
+          );
+          if result == 0 {
+              return Err(coreaudio::Error::from_os_status(result.into()).unwrap_err());
+          }
+          let name: &CStr = CStr::from_ptr(buf.as_ptr());
+          return Ok(name.to_str().unwrap().to_owned());
+      }
+      CStr::from_ptr(c_string as *mut _)
+  };
+  Ok(c_str.to_string_lossy().into_owned())
+}
 
 pub fn check_device_exists(target_name: &str) -> bool {
   let device_ids = get_audio_device_ids().expect("failed to get audio device ids");
@@ -80,19 +97,38 @@ pub fn check_device_exists(target_name: &str) -> bool {
   false
 }
 
-// pub fn all_device_uids() -> Vec<String> {
-//   let device_ids = get_audio_device_ids().expect("failed to get audio device ids");
-//   let mut uids = Vec::new();
+pub fn all_devices_info() -> Vec<AudioDeviceInfo> {
+    let mut devices_info = Vec::new();
 
-//   for device_id in device_ids {
-//       if let Ok(uid) = get_device_uid(device_id) {
-//           println!("device uid: {}", uid);
-//           uids.push(uid);
-//       }
-//   }
+    if let Ok(device_ids) = get_audio_device_ids() {
+        for device_id in device_ids {
+            // Attempt to get the name and uid for each device
+            if let Ok(device_name) = get_device_name(device_id) {
+                if let Ok(device_uid) = get_device_uid(device_id) {
+                    log::info!(
+                        "Device ID: {}, Device Name: {}, UID: {}",
+                        device_id,
+                        device_name,
+                        device_uid
+                    );
+                    devices_info.push(AudioDeviceInfo {
+                        device_id,
+                        device_name,
+                        device_uid,
+                    });
+                } else {
+                    log::warn!("Failed to get UID for device ID: {}", device_id);
+                }
+            } else {
+                log::warn!("Failed to get name for device ID: {}", device_id);
+            }
+        }
+    } else {
+        log::error!("Failed to get audio device IDs");
+    }
 
-//   uids
-// }
+    devices_info
+}
 
 pub fn get_tap_stream_audio_description(
   tap_id: AudioDeviceID,
