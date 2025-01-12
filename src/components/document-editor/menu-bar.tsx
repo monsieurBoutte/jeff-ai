@@ -170,9 +170,9 @@ export const MenuBar = ({ editor }: MenuBarProps) => {
     const token = await getToken();
     send({ type: 'TOGGLE_SYSTEM_OUTPUT' });
     if (state.matches('systemOutput')) {
-      invoke('stop_recording_system_output', { token, refine: false });
+      invoke('stop_aggregate_recording', { token, refine: false });
     } else {
-      invoke('start_recording_system_output');
+      invoke('start_aggregate_recording');
     }
   }, [send, state, isAuthenticated, getToken]);
 

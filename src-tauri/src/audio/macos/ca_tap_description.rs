@@ -5,17 +5,8 @@ extern crate uuid;
 
 use objc::runtime::{Class, Object};
 use objc::{msg_send, sel, sel_impl};
-use objc_foundation::{NSArray, INSObject, INSString, NSString};
+use objc_foundation::{NSArray, INSObject, NSString};
 use objc_id::{Id, Owned};
-use uuid::Uuid;
-
-// #[repr(i64)]
-// #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-// pub enum CATapMuteBehavior {
-//     Unmuted = 0,
-//     Muted = 1,
-//     MutedWhenTapped = 2,
-// }
 
 pub struct CATapDescription {
     pub obj: Id<Object, Owned>,
@@ -56,50 +47,50 @@ impl CATapDescription {
     }
 }
 // Wrapper for NSNumber
-pub struct NSNumber {
-    obj: Id<Object, Owned>,
-}
+// pub struct NSNumber {
+//     obj: Id<Object, Owned>,
+// }
 
-impl NSNumber {
-    pub fn new(value: i32) -> Id<NSNumber> {
-        unsafe {
-            let class = Class::get("NSNumber").unwrap();
-            let obj: *mut Object = msg_send![class, numberWithInt: value];
-            Id::from_ptr(obj as *mut NSNumber)
-        }
-    }
-}
+// impl NSNumber {
+//     pub fn new(value: i32) -> Id<NSNumber> {
+//         unsafe {
+//             let class = Class::get("NSNumber").unwrap();
+//             let obj: *mut Object = msg_send![class, numberWithInt: value];
+//             Id::from_ptr(obj as *mut NSNumber)
+//         }
+//     }
+// }
 
-unsafe impl objc::Message for NSNumber {}
+// unsafe impl objc::Message for NSNumber {}
 
-impl INSObject for NSNumber {
-    fn class() -> &'static Class {
-        Class::get("NSNumber").unwrap()
-    }
-}
+// impl INSObject for NSNumber {
+//     fn class() -> &'static Class {
+//         Class::get("NSNumber").unwrap()
+//     }
+// }
 
 // Custom NSUUID wrapper
-pub struct NSUUID {
-    obj: Id<Object, Owned>,
-}
+// pub struct NSUUID {
+//     obj: Id<Object, Owned>,
+// }
 
-impl NSUUID {
-    pub fn from_uuid(uuid: Uuid) -> Id<NSUUID> {
-        let uuid_string = uuid.to_string();
-        let nsstring = NSString::from_str(&uuid_string);
-        unsafe {
-            let class = Class::get("NSUUID").unwrap();
-            let obj: *mut Object = msg_send![class, alloc];
-            let obj: *mut Object = msg_send![obj, initWithUUIDString: nsstring];
-            Id::from_ptr(obj as *mut NSUUID)
-        }
-    }
-}
+// impl NSUUID {
+//     pub fn from_uuid(uuid: Uuid) -> Id<NSUUID> {
+//         let uuid_string = uuid.to_string();
+//         let nsstring = NSString::from_str(&uuid_string);
+//         unsafe {
+//             let class = Class::get("NSUUID").unwrap();
+//             let obj: *mut Object = msg_send![class, alloc];
+//             let obj: *mut Object = msg_send![obj, initWithUUIDString: nsstring];
+//             Id::from_ptr(obj as *mut NSUUID)
+//         }
+//     }
+// }
 
-unsafe impl objc::Message for NSUUID {}
+// unsafe impl objc::Message for NSUUID {}
 
-impl INSObject for NSUUID {
-    fn class() -> &'static Class {
-        Class::get("NSUUID").unwrap()
-    }
-}
+// impl INSObject for NSUUID {
+//     fn class() -> &'static Class {
+//         Class::get("NSUUID").unwrap()
+//     }
+// }
