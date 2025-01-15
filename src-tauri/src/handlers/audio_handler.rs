@@ -345,7 +345,8 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
 
             // 1. If an aggregate device with this name/UID already exists, remove it
             let agg_device_name = "AI-Jeff-recorder";
-            let agg_device_uid = Uuid::new_v4().to_string();
+            let agg_device_uid = "AI-Jeff-recorder-uid";
+            // let agg_device_uid = Uuid::new_v4().to_string();
             if check_device_exists(agg_device_name) {
                 log::info!("Found existing aggregate device, removing it...");
                 if let Some(agg_device_id) =
@@ -442,8 +443,195 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
             log::info!("Successfully set aggregate device as default output");
 
             // 7. Now open it in CPAL for input, etc...
-            //    (Same logic you already have to record, spawn thread, etc.)
+            // thread::sleep(Duration::from_millis(600));
 
+            // List all available devices for debugging
+            log::info!("Listing all available devices:");
+            let available_devices = host.devices().map_err(|e| e.to_string())?;
+            for device in available_devices {
+                if let Ok(name) = device.name() {
+                    log::info!("Found device: {}", name);
+                }
+            }
+
+            // Try to find our aggregate device
+            let aggregate_device = {
+                let mut devices = host.devices().map_err(|e| e.to_string())?;
+                let found_device = devices.find(|d| {
+                    if let Ok(name) = d.name() {
+                        log::info!("Checking device: {}", name);
+                        name == agg_device_name
+                    } else {
+                        false
+                    }
+                });
+
+                match found_device {
+                    Some(device) => device,
+                    None => {
+                        log::info!("Device not found immediately, waiting longer...");
+                        thread::sleep(Duration::from_millis(1000));
+
+                        let mut devices = host.devices().map_err(|e| e.to_string())?;
+                        devices
+                            .find(|d| d.name().map(|name| name == agg_device_name).unwrap_or(false))
+                            .ok_or("Unable to find newly created aggregate device via CPAL even after retry")?
+                    }
+                }
+            };
+
+            log::info!("Found aggregate device: {}", agg_device_name);
+
+            // Log available configs
+            if let Ok(configs) = aggregate_device.supported_input_configs() {
+                for cfg in configs {
+                    log::info!("Available config: {:?}", cfg);
+                }
+            }
+            // Choose or negotiate a suitable input config
+            let config = aggregate_device
+                .supported_input_configs()
+                .map_err(|e| format!("Error getting supported configs: {}", e))?
+                .find(|c| {
+                    (c.channels() == 2 || c.channels() == 3 || c.channels() == 4)
+                        && c.min_sample_rate() <= SampleRate(48000)
+                        && c.max_sample_rate() >= SampleRate(48000)
+                })
+                .map(|c| c.with_sample_rate(SampleRate(48000)))
+                .ok_or("No suitable input config found")?;
+
+            log::info!("Selected audio config:");
+            log::info!("  Sample rate: {} Hz", config.sample_rate().0);
+            log::info!("  Channels: {}", config.channels());
+            log::info!("  Sample format: {:?}", config.sample_format());
+            log::info!("  Buffer size: {:?}", config.buffer_size());
+
+            log::info!("Selected input config: {:?}", config);
+
+            log::info!(
+                "Selected config - Sample rate: {}, Channels: {}, Format: {:?}",
+                config.sample_rate().0,
+                config.channels(),
+                config.sample_format()
+            );
+
+            // Create a temporary file and WAV writer
+            let temp_file = Builder::new()
+                .prefix("system_output_recording_")
+                .suffix(".wav")
+                .tempfile()
+                .map_err(|e| format!("Failed to create temp file: {}", e))?;
+
+            let output_path = temp_file.path().to_path_buf();
+            log::info!("Recording system audio to: {:?}", output_path);
+
+            let spec = wav_spec_from_config(&config);
+            let writer = WavWriter::create(&output_path, spec)
+                .map_err(|e| format!("Failed to create WavWriter: {}", e))?;
+            let path_str = output_path.to_string_lossy().to_string();
+
+            // Arc for concurrency
+            let writer = Arc::new(Mutex::new(Some((writer, path_str.clone()))));
+
+            // Set up channels and state
+            let (sender, receiver) = channel();
+            *state.recording_sender.lock().map_err(|e| e.to_string())? = Some(sender);
+            *state.audio_writer.lock().map_err(|e| e.to_string())? = Some(Arc::clone(&writer));
+            *state.temp_file.lock().map_err(|e| e.to_string())? = Some(temp_file);
+
+            state.is_recording.store(true, Ordering::SeqCst);
+            let recording_flag = Arc::clone(&state.is_recording);
+
+            *state.thread_completed.lock().map_err(|e| e.to_string())? = false;
+            let thread_completed_clone = Arc::clone(&state.thread_completed);
+
+            // 8. Build and play the input stream in a separate thread
+            std::thread::spawn(move || {
+                let recording_flag_stream = Arc::clone(&recording_flag);
+                let writer_clone = Arc::clone(&writer);
+                let stream = aggregate_device.build_input_stream(
+                    &config.into(),
+                    move |data: &[f32], _| {
+                        // Only process and log if we're still recording
+                        if recording_flag_stream.load(Ordering::SeqCst) {
+                            log::info!("Received audio data: {} samples", data.len());
+                            let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
+                            log::info!("Max amplitude: {}", max_amplitude);
+                            let has_signal = max_amplitude > 0.0000001;
+
+                            if has_signal {
+                                write_input_data(data, &writer_clone);
+                            } else {
+                                log::info!("No significant audio signal detected.");
+                            }
+                        }
+                    },
+                    move |err| {
+                        log::error!("Error in system output audio stream: {}", err);
+                    },
+                    None,
+                ).expect("Failed to build input stream");
+
+                stream.play().unwrap();
+
+                // Wait for stop signal
+                while recording_flag.load(Ordering::SeqCst) {
+                    match receiver.recv_timeout(Duration::from_millis(100)) {
+                        Ok(_) => {
+                            log::info!("Recording thread received message, current buffer size: {}", 
+                                writer.lock()
+                                    .ok()
+                                    .and_then(|guard| guard.as_ref().map(|(w, _)| w.len()))
+                                    .unwrap_or(0)
+                            );
+                            continue;
+                        }
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                            continue;
+                        }
+                        Err(_) => {
+                            log::info!("Recording thread received stop signal");
+                            break;
+                        }
+                    }
+                }
+
+                // Explicitly stop and drop the stream
+                log::info!("Stopping audio stream...");
+                if let Err(e) = stream.pause() {
+                    log::error!("Error pausing stream: {}", e);
+                }
+                
+                // Ensure any remaining data is flushed
+                if let Ok(mut writer_guard) = writer.lock() {
+                    if let Some((writer, _)) = writer_guard.as_mut() {
+                        log::info!("Flushing remaining audio data...");
+                        if let Err(e) = writer.flush() {
+                            log::error!("Error flushing WAV writer: {}", e);
+                        }
+                    }
+                }
+                
+                drop(stream);
+                log::info!("Audio stream stopped and dropped");
+
+                log::info!("Finalizing aggregate recording...");
+                if let Ok(mut writer_guard) = writer.lock() {
+                    if let Some((writer, _)) = writer_guard.take() {
+                        if let Err(e) = writer.finalize() {
+                            log::error!("Error finalizing WAV writer: {}", e);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to acquire lock on WAV writer for finalization");
+                }
+
+                // Mark thread completed
+                if let Ok(mut completed) = thread_completed_clone.lock() {
+                    *completed = true;
+                    log::info!("Aggregate recording thread completed");
+                }
+            });
             Ok(())
         }
         _ => Err("Recording system output already in progress".to_string()),
@@ -452,7 +640,7 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
 
 // #[cfg(target_os = "macos")]
 // #[tauri::command]
-// pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
+// pub async fn old_start_aggregate_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
 //     let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
 
 //     match *recording_state {
@@ -724,7 +912,7 @@ pub async fn stop_aggregate_recording(
     }
 
     // Wait for the device switch to complete
-    tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
+    // tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
 
     // 3. Signal the recording thread to stop
     state.is_recording.store(false, Ordering::SeqCst);

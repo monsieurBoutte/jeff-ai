@@ -61,7 +61,7 @@ pub fn create_aggregate_device(
   output_uid: &str,
   aggregate_device_name: &str,
   aggregate_device_uid: &str,
-) -> Result<CreateAggregateDeviceResult, coreaudio::Error> 
+) -> Result<CreateAggregateDeviceResult, coreaudio::Error>
 {
   info!(
     "Creating aggregate device with input_uid: {} \
