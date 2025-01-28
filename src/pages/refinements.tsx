@@ -126,7 +126,7 @@ export default function Refinements() {
 
                     <div>
                       <div className="flex gap-1 items-center mb-3 -ml-[3px]">
-                        <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2" />
+                        <span className="w-2 h-2 bg-orange-500 rounded-full mr-2" />
                         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Refined Text
                         </h3>

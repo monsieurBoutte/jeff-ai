@@ -1,0 +1,56 @@
+/* Custom checkbox styles */
+.task-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #94a3b8; /* gray-400, thinner border */
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  background: transparent;
+  margin-top: 2px;
+}
+
+.task-checkbox:checked {
+  background-color: #ea580c; /* orange-600 */
+  border-width: 1px;
+  border-style: solid;
+  border-color: #ea580c;
+}
+
+.task-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.dark .task-checkbox {
+  border-color: #475569; /* slate-600 */
+}
+
+.task-checkbox:hover {
+  border-color: #cbd5e1; /* slate-300 */
+}
+
+.dark .task-checkbox:hover {
+  border-color: #64748b; /* slate-500 */
+}
+
+.task-checkbox:focus-visible {
+  outline: 2px solid #ea580c; /* orange-600 */
+  outline-offset: 2px;
+}
+
+/* Ensure the focus state works in dark mode too */
+.dark .task-checkbox:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+}

@@ -74,7 +74,7 @@ export function AppSidebar() {
                       className={cn(
                         'hover:bg-gray-100 dark:hover:bg-gray-800/25',
                         location === item.url &&
-                          'text-indigo-600 bg-gray-100 dark:bg-gray-800/25'
+                          'text-orange-500 bg-gray-100 dark:bg-gray-800/25'
                       )}
                     >
                       <item.icon />

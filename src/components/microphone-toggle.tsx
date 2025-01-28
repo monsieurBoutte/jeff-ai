@@ -7,10 +7,15 @@ import recordSfx from '@/assets/cassette_tape_record.mp3';
 
 interface MicrophoneToggleProps {
   isActive: boolean;
+  isProcessing?: boolean;
   onClick: () => void;
 }
 
-export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
+export function MicrophoneToggle({
+  isActive,
+  isProcessing,
+  onClick
+}: MicrophoneToggleProps) {
   const [play] = useSound(recordSfx);
   return (
     <Button
@@ -23,11 +28,19 @@ export function MicrophoneToggle({ isActive, onClick }: MicrophoneToggleProps) {
       className={cn(
         'transition-colors',
         isActive &&
-          'border-red-500 text-red-800 animate-recording-pulse bg-red-100 dark:bg-red-950'
+          'border-red-500 text-red-800 animate-recording-pulse bg-red-100 dark:bg-red-950',
+        isProcessing && 'opacity-50 cursor-wait'
       )}
+      disabled={isProcessing}
     >
       <Voicemail className="h-[1.2rem] w-[1.2rem]" />
-      <span>{isActive ? 'Stop recording' : 'Use Speech to Text'}</span>
+      <span>
+        {isProcessing
+          ? 'Scanning for auto-refinements...'
+          : isActive
+          ? 'Stop recording'
+          : 'Use Speech to Text'}
+      </span>
     </Button>
   );
 }

@@ -1,6 +1,6 @@
 :root {
-  --tiptap-purple-light: rgba(147, 51, 234, 0.1);
-  --tiptap-purple-contrast: rgba(147, 51, 234, 1);
+  --tiptap-orange-light: rgba(249, 115, 22, 0.1);
+  --tiptap-orange-contrast: rgba(249, 115, 22, 1);
   --tiptap-black: rgba(15, 23, 42, 1);
   --tiptap-white: rgba(248, 250, 252, 1);
   --tiptap-gray-2: rgba(226, 232, 240, 1);
@@ -82,7 +82,7 @@
 
 /* Code and preformatted text styles */
 .tiptap code {
-  background-color: var(--tiptap-purple-light);
+  background-color: var(--tiptap-orange-light);
   border-radius: 0.4rem;
   color: var(--tiptap-black);
   font-size: 0.85rem;
@@ -123,7 +123,7 @@
 }
 
 .ProseMirror:focus {
-  @apply ring-1 ring-[#7c3aed] ring-offset-2 ring-offset-background;
+  @apply ring-1 ring-[#f97316] ring-offset-2 ring-offset-background;
 }
 
 /* Placeholder*/

@@ -21,6 +21,7 @@ use tempfile::Builder;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use uuid::Uuid;
+use cpal::Host;
 
 async fn transcribe_audio(
     user_id: String,
@@ -159,6 +160,20 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
                 .default_input_device()
                 .ok_or_else(|| "No input device available".to_string())?;
 
+            log::info!("Selected input device: {}", device.name().map_err(|e| e.to_string())?);
+
+            if let Ok(configs) = device.supported_input_configs() {
+                for config in configs {
+                    log::info!(
+                        "  Rate: {:?}-{:?}, Channels: {}, Format: {:?}",
+                        config.min_sample_rate(),
+                        config.max_sample_rate(),
+                        config.channels(),
+                        config.sample_format()
+                    );
+                }
+            }
+
             let config = device.default_input_config().map_err(|e| e.to_string())?;
 
             let spec = wav_spec_from_config(&config);
@@ -188,7 +203,7 @@ pub async fn start_recording(state: tauri::State<'_, AppState>) -> Result<(), St
                         move |data: &[f32], _| {
                             if recording_flag_stream.load(Ordering::SeqCst) {
                                 let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
-                                let has_signal = max_amplitude > 0.0000001;
+                                let has_signal = max_amplitude > 0.00001;
 
                                 if has_signal {
                                     write_input_data(data, &writer_clone);
@@ -557,7 +572,7 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
                             log::info!("Received audio data: {} samples", data.len());
                             let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
                             log::info!("Max amplitude: {}", max_amplitude);
-                            let has_signal = max_amplitude > 0.0000001;
+                            let has_signal = max_amplitude > 0.00001;
 
                             if has_signal {
                                 write_input_data(data, &writer_clone);
@@ -578,7 +593,7 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
                 while recording_flag.load(Ordering::SeqCst) {
                     match receiver.recv_timeout(Duration::from_millis(100)) {
                         Ok(_) => {
-                            log::info!("Recording thread received message, current buffer size: {}", 
+                            log::info!("Recording thread received message, current buffer size: {}",
                                 writer.lock()
                                     .ok()
                                     .and_then(|guard| guard.as_ref().map(|(w, _)| w.len()))
@@ -601,7 +616,7 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
                 if let Err(e) = stream.pause() {
                     log::error!("Error pausing stream: {}", e);
                 }
-                
+
                 // Ensure any remaining data is flushed
                 if let Ok(mut writer_guard) = writer.lock() {
                     if let Some((writer, _)) = writer_guard.as_mut() {
@@ -611,7 +626,7 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
                         }
                     }
                 }
-                
+
                 drop(stream);
                 log::info!("Audio stream stopped and dropped");
 
@@ -637,243 +652,6 @@ pub async fn start_aggregate_recording(state: tauri::State<'_, AppState>) -> Res
         _ => Err("Recording system output already in progress".to_string()),
     }
 }
-
-// #[cfg(target_os = "macos")]
-// #[tauri::command]
-// pub async fn old_start_aggregate_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
-//     let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
-
-//     match *recording_state {
-//         RecordingState::Stopped => {
-//             *recording_state = RecordingState::Recording;
-//             log::info!("Starting aggregate recording");
-
-//             let agg_device_name = "AI-Jeff-recorder";
-//             let agg_device_uid = Uuid::new_v4().to_string();
-
-//             // 1. If an aggregate device with this name/UID already exists, remove it
-//             if check_device_exists(agg_device_name) {
-//                 log::info!("Found existing aggregate device, removing it...");
-//                 if let Some(agg_device_id) =
-//                     *state.system_agg_device_id.lock().map_err(|e| e.to_string())?
-//                 {
-//                     remove_aggregate_device(agg_device_id).map_err(|e| e.to_string())?;
-//                 }
-//             }
-
-//             // 2. Identify default input & output devices (for the aggregator)
-//             let host = cpal::host_from_id(HostId::CoreAudio).map_err(|e| e.to_string())?;
-//             let default_output_device = host
-//                 .default_output_device()
-//                 .ok_or("No default output device found!")?;
-
-//             let device_id = get_default_output_device().map_err(|e| format!("Failed to get default output device: {}", e))?;
-//             log::info!("Default device ID: {}", device_id);
-
-//             // Log the default output device name
-//             let output_device_name = default_output_device
-//                 .name()
-//                 .map_err(|_| "Failed to get default output device name")?;
-//             log::info!("Default output device: {}", output_device_name);
-
-//             let default_input_device = host
-//                 .default_input_device()
-//                 .ok_or("No default input device found!")?;
-
-//             // Log the default input device name
-//             let default_input_device_id = default_input_device
-//                 .name()
-//                 .map_err(|_| "Failed to get default input device name")?;
-//             log::info!("Default input device: {}", default_input_device_id);
-
-//             let all_device_uids = all_device_uids();
-//             log::info!("All device UIDs: {:?}", all_device_uids);
-
-//             let default_output_device_id = default_output_device
-//                 .name()
-//                 .map_err(|_| "Failed to get default output device name")?;
-
-//             // (Optional) Log configurations for debugging
-//             log::info!("Default output device configurations:");
-//             if let Ok(configs) = default_output_device.supported_output_configs() {
-//                 for config in configs {
-//                     log::info!(
-//                         "  Rate: {:?}-{:?}, Channels: {}, Format: {:?}",
-//                         config.min_sample_rate(),
-//                         config.max_sample_rate(),
-//                         config.channels(),
-//                         config.sample_format()
-//                     );
-//                 }
-//             }
-
-//             // 3. Create the new aggregate device
-//             let create_result = {
-//                 // Add a small delay to reduce CoreAudio flakiness
-//                 thread::sleep(Duration::from_millis(400));
-
-//                 create_aggregate_device(
-//                     &default_input_device_id,
-//                     &default_output_device_id,
-//                     // &input_uid,
-//                     // &output_uid,
-//                     agg_device_name,
-//                     &agg_device_uid,
-//                 ).map_err(|e| format!("Failed to create aggregate device: {:?}", e))?
-//             };
-
-//             log::info!(
-//                 "Successfully created aggregate device. ID: {}, Tap ID: {}",
-//                 create_result.aggregate_device_id,
-//                 create_result.tap_id
-//             );
-
-//             // 4. Store this ID so we can remove later
-//             *state.system_agg_device_id.lock().map_err(|e| e.to_string())? =
-//                 Some(create_result.aggregate_device_id);
-
-//             // 5. Wait a moment, then set the aggregator as the default device
-//             log::info!("Waiting for device to initialize...");
-//             thread::sleep(Duration::from_millis(600));
-
-//             set_default_device(agg_device_name).map_err(|e| {
-//                 log::error!("Failed to set aggregate device as default: {}", e);
-//                 e
-//             })?;
-//             log::info!("Successfully set aggregate device as default output");
-
-//             // 6. Now open it in CPAL for input
-//             thread::sleep(Duration::from_millis(600));
-
-//             let aggregate_device = host
-//                 .devices()
-//                 .map_err(|e| e.to_string())?
-//                 .find(|d| {
-//                     d.name()
-//                      .map(|name| name == agg_device_name)
-//                      .unwrap_or(false)
-//                 })
-//                 .ok_or("Unable to find newly created aggregate device via CPAL")?;
-
-//             // Choose or negotiate a suitable input config
-//             let config = aggregate_device
-//                 .supported_input_configs()
-//                 .map_err(|e| format!("Error getting supported configs: {}", e))?
-//                 .find(|c| {
-//                     (c.channels() == 2 || c.channels() == 4)
-//                         && c.min_sample_rate() <= SampleRate(48000)
-//                         && c.max_sample_rate() >= SampleRate(48000)
-//                 })
-//                 .map(|c| c.with_sample_rate(SampleRate(48000)))
-//                 .ok_or("No suitable input config found")?;
-
-//             log::info!(
-//                 "Selected config - Sample rate: {}, Channels: {}, Format: {:?}",
-//                 config.sample_rate().0,
-//                 config.channels(),
-//                 config.sample_format()
-//             );
-
-//             // Create a temporary file and WAV writer
-//             let temp_file = Builder::new()
-//                 .prefix("system_output_recording_")
-//                 .suffix(".wav")
-//                 .tempfile()
-//                 .map_err(|e| format!("Failed to create temp file: {}", e))?;
-
-//             let output_path = temp_file.path().to_path_buf();
-//             log::info!("Recording system audio to: {:?}", output_path);
-
-//             let spec = wav_spec_from_config(&config);
-//             let writer = WavWriter::create(&output_path, spec)
-//                 .map_err(|e| format!("Failed to create WavWriter: {}", e))?;
-//             let path_str = output_path.to_string_lossy().to_string();
-
-//             // Arc for concurrency
-//             let writer = Arc::new(Mutex::new(Some((writer, path_str.clone()))));
-
-//             // Set up channels and state
-//             let (sender, receiver) = channel();
-//             *state.recording_sender.lock().map_err(|e| e.to_string())? = Some(sender);
-//             *state.audio_writer.lock().map_err(|e| e.to_string())? = Some(Arc::clone(&writer));
-//             *state.temp_file.lock().map_err(|e| e.to_string())? = Some(temp_file);
-
-//             state.is_recording.store(true, Ordering::SeqCst);
-//             let recording_flag = Arc::clone(&state.is_recording);
-
-//             *state.thread_completed.lock().map_err(|e| e.to_string())? = false;
-//             let thread_completed_clone = Arc::clone(&state.thread_completed);
-
-//             // 7. Build and play the input stream in a separate thread
-//             std::thread::spawn(move || {
-//                 let recording_flag_stream = Arc::clone(&recording_flag);
-//                 let writer_clone = Arc::clone(&writer);
-//                 let stream = aggregate_device.build_input_stream(
-//                     &config.into(),
-//                     move |data: &[f32], _| {
-//                         if recording_flag_stream.load(Ordering::SeqCst) {
-//                             // let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
-//                             // if max_amplitude > 0.0000001 {
-//                             //     write_input_data(data, &writer_clone);
-//                             // }
-//                             write_input_data(data, &writer_clone);
-//                         }
-//                     },
-//                     move |err| {
-//                         log::error!("Error in system output audio stream: {}", err);
-//                     },
-//                     None,
-//                 ).expect("Failed to build input stream");
-
-//                 stream.play().unwrap();
-
-//                 // Wait for stop signal
-//                 while recording_flag.load(Ordering::SeqCst) {
-//                     if receiver.recv().is_err() {
-//                         log::info!("Recording thread received stop signal");
-//                         break;
-//                     }
-//                 }
-
-//                 // Close the stream
-//                 drop(stream);
-
-//                 log::info!("Finalizing aggregate recording...");
-//                 if let Ok(mut writer_guard) = writer.lock() {
-//                     if let Some((writer, _)) = writer_guard.take() {
-//                         if let Err(e) = writer.finalize() {
-//                             log::error!("Error finalizing WAV writer: {}", e);
-//                         }
-//                     }
-//                 } else {
-//                     log::error!("Failed to acquire lock on WAV writer for finalization");
-//                 }
-
-//                 // Mark thread completed
-//                 if let Ok(mut completed) = thread_completed_clone.lock() {
-//                     *completed = true;
-//                     log::info!("Aggregate recording thread completed");
-//                 }
-//             });
-
-//             // 8. Log out tap info, purely for debugging
-//             if let Ok(tap_format) = get_tap_stream_audio_description(create_result.tap_id) {
-//                 log::info!(
-//                     "Tap device format - Sample rate: {}, Channels: {}, Bits per channel: {}, Format ID: {}",
-//                     tap_format.mSampleRate,
-//                     tap_format.mChannelsPerFrame,
-//                     tap_format.mBitsPerChannel,
-//                     tap_format.mFormatID
-//                 );
-//             } else {
-//                 log::warn!("Could not get tap device audio format");
-//             }
-
-//             Ok(())
-//         }
-//         _ => Err("Recording system output already in progress".to_string()),
-//     }
-// }
 
 #[cfg(target_os = "macos")]
 #[tauri::command]
@@ -1033,5 +811,206 @@ pub fn stop_aggregate_recording(
     token: String,
     refine: bool,
 ) -> Result<(), i32> {
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn start_output_recording(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
+
+    match *recording_state {
+        RecordingState::Stopped => {
+            *recording_state = RecordingState::Recording;
+            log::info!("Starting output recording");
+
+            // Get the default output device
+            let host = cpal::default_host();
+            let device = host
+                .default_output_device()
+                .ok_or_else(|| "No output device available".to_string())?;
+
+            log::info!("Selected output device: {}", device.name().map_err(|e| e.to_string())?);
+
+            // Get default config
+            let config = device.default_output_config().map_err(|e| e.to_string())?;
+            log::info!(
+                "Default output config - Sample rate: {}, Channels: {}, Format: {:?}",
+                config.sample_rate().0,
+                config.channels(),
+                config.sample_format()
+            );
+
+            // Create temp file
+            let temp_file = Builder::new()
+                .prefix("output_recording_")
+                .suffix(".wav")
+                .tempfile()
+                .map_err(|e| format!("Failed to create temp file: {}", e))?;
+
+            let output_path = temp_file.path().to_path_buf();
+            log::info!("Recording to temporary file: {:?}", output_path);
+
+            // Create WAV writer
+            let spec = wav_spec_from_config(&config);
+            let writer = WavWriter::create(&output_path, spec).map_err(|e| e.to_string())?;
+            let path_str = output_path.to_string_lossy().to_string();
+
+            let writer = Arc::new(Mutex::new(Some((writer, path_str.clone()))));
+            let writer_clone = Arc::clone(&writer);
+
+            // Set up channels and state
+            let (sender, receiver) = channel();
+            *state.recording_sender.lock().map_err(|e| e.to_string())? = Some(sender);
+            *state.audio_writer.lock().map_err(|e| e.to_string())? = Some(Arc::clone(&writer));
+            *state.temp_file.lock().map_err(|e| e.to_string())? = Some(temp_file);
+
+            state.is_recording.store(true, Ordering::SeqCst);
+            let recording_flag = Arc::clone(&state.is_recording);
+
+            // Start recording thread
+            std::thread::spawn(move || {
+                let recording_flag_stream = Arc::clone(&recording_flag);
+                let stream = device
+                    .build_output_stream(
+                        &config.into(),
+                        move |data: &mut [f32], _| {
+                            if recording_flag_stream.load(Ordering::SeqCst) {
+                                log::info!("Received audio data: {} samples", data.len());
+                                let max_amplitude = data.iter().map(|&x| x.abs()).fold(0.0f32, f32::max);
+                                log::info!("Max amplitude: {}", max_amplitude); // Log max amplitude
+
+                                let has_signal = max_amplitude > 0.00001;
+
+                                if has_signal {
+                                    write_input_data(data, &writer_clone);
+                                } else {
+                                    log::info!("No significant audio signal detected.");
+                                }
+                            }
+                        },
+                        move |err| {
+                            log::error!("Error in output audio stream: {}", err);
+                        },
+                        None,
+                    )
+                    .unwrap();
+
+                stream.play().unwrap();
+
+                while recording_flag.load(Ordering::SeqCst) {
+                    if receiver.recv().is_err() {
+                        break;
+                    }
+                }
+
+                if let Ok(mut writer_guard) = writer.lock() {
+                    if let Some((writer, _)) = writer_guard.take() {
+                        writer.finalize().unwrap();
+                    }
+                }
+            });
+
+            Ok(())
+        }
+        _ => Err("Recording already in progress".to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn stop_output_recording(
+    state: tauri::State<'_, AppState>,
+    token: String,
+    refine: bool,
+) -> Result<(), String> {
+    {
+        let mut recording_state = state.recording_state.lock().map_err(|e| e.to_string())?;
+        match *recording_state {
+            RecordingState::Recording | RecordingState::Paused => {
+                *recording_state = RecordingState::Stopped;
+            }
+            RecordingState::Stopped => return Err("Recording not started".to_string()),
+        }
+    }
+
+    log::info!("Stopping output recording");
+    state.is_recording.store(false, Ordering::SeqCst);
+
+    // Signal the recording thread to stop
+    if let Some(sender) = state
+        .recording_sender
+        .lock()
+        .map_err(|e| e.to_string())?
+        .as_ref()
+    {
+        sender.send(()).map_err(|e| e.to_string())?;
+    }
+
+    let audio_file_path = {
+        let audio_writer_guard = state.audio_writer.lock().map_err(|e| e.to_string())?;
+        if let Some(writer_arc) = audio_writer_guard.as_ref() {
+            let writer_guard = writer_arc.lock().map_err(|e| e.to_string())?;
+            writer_guard.as_ref().map(|(_, path)| path.clone())
+        } else {
+            None
+        }
+    };
+
+    // Handle transcription if we have a file
+    if let Some(file_path) = audio_file_path {
+        log::info!("Transcribing output audio file: {}", file_path);
+
+        let user_id = {
+            let user_guard = state.existing_user.lock().map_err(|e| e.to_string())?;
+            user_guard
+                .as_ref()
+                .ok_or_else(|| "User not authenticated".to_string())?
+                .id
+                .clone()
+        };
+
+        let transcription_result =
+            transcribe_audio(user_id, token, file_path.clone(), refine).await;
+
+        // Clean up temp file
+        if let Ok(mut temp_file_guard) = state.temp_file.lock() {
+            let path = temp_file_guard.as_ref().map(|f| f.path().to_owned());
+            temp_file_guard.take();
+
+            if let Some(path) = path {
+                if path.exists() {
+                    log::warn!("Temporary file still exists at: {:?}", path);
+                } else {
+                    log::info!("Successfully deleted temporary file at: {:?}", path);
+                }
+            }
+        }
+
+        log::info!("Transcription result: {:?}", transcription_result);
+
+        match transcription_result {
+            Ok(transcript) => {
+                if !transcript.is_empty() {
+                    let event_name = if refine {
+                        "refined-transcription-complete"
+                    } else {
+                        "transcription-complete"
+                    };
+                    state
+                        .app_handle
+                        .emit_to(EventTarget::any(), event_name, Some(transcript))
+                        .map_err(|e| e.to_string())?;
+                } else {
+                    log::info!("Skipping event emission for empty transcript");
+                }
+            }
+            Err(e) => {
+                state
+                    .app_handle
+                    .emit_to(EventTarget::any(), "transcription-error", Some(e))
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
     Ok(())
 }

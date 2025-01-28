@@ -50,6 +50,7 @@ import { MarkdownResponse, RefineTextResponse } from '@/types/commands';
 
 interface DocumentEditorProps {
   content: string;
+  onEditorUpdate?: (content: string) => void;
 }
 
 export const DocumentEditor = ({ content }: DocumentEditorProps) => {
@@ -215,7 +216,7 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
               onClick={() => editor.chain().focus().toggleBold().run()}
               className={cn(
                 'hover:bg-gray-200 dark:hover:bg-gray-700',
-                editor.isActive('bold') && 'text-indigo-600'
+                editor.isActive('bold') && 'text-orange-500'
               )}
             >
               <BoldIcon
@@ -230,7 +231,7 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
               onClick={() => editor.chain().focus().toggleItalic().run()}
               className={cn(
                 'hover:bg-gray-200 dark:hover:bg-gray-700',
-                editor.isActive('italic') && 'text-indigo-600'
+                editor.isActive('italic') && 'text-orange-600'
               )}
             >
               <ItalicIcon
@@ -245,7 +246,7 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
               onClick={() => editor.chain().focus().toggleStrike().run()}
               className={cn(
                 'hover:bg-gray-200 dark:hover:bg-gray-700',
-                editor.isActive('strike') && 'text-indigo-600'
+                editor.isActive('strike') && 'text-orange-600'
               )}
             >
               <Strikethrough
