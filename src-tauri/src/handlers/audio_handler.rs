@@ -1,11 +1,7 @@
 use crate::audio::{
     wav_spec_from_config, write_input_data
 };
-use crate::audio::macos::{
-    volume::*,
-    aggregate_device::*,
-    helpers::*
-};
+use crate::audio::macos::volume::{get_default_output_device, get_device_volume};
 use crate::state::AppState;
 use crate::state::RecordingState;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};

@@ -112,7 +112,7 @@ pub async fn create_task(
 
 #[tauri::command]
 pub async fn update_task(
-    state: tauri::State<'_, AppState>,
+    _state: tauri::State<'_, AppState>,
     token: String,
     task_id: u32,
     content: Option<String>,
@@ -159,7 +159,7 @@ pub async fn update_task(
 
 #[tauri::command]
 pub async fn delete_task(
-    state: tauri::State<'_, AppState>,
+    _state: tauri::State<'_, AppState>,
     token: String,
     task_id: String,
 ) -> Result<Value, String> {
@@ -186,4 +186,4 @@ pub async fn delete_task(
     })?;
 
     Ok(json_value)
-} 
+}
