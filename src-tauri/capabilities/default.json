@@ -16,6 +16,9 @@
           "url": "https://*.jeff-ai-cf-be.mrboutte21.workers.dev/*"
         },
         {
+          "url": "http://localhost:8787/*"
+        },
+        {
           "url": "https://*.jeffai.kinde.com/*"
         },
         {

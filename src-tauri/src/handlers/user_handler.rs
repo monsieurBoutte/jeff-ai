@@ -77,26 +77,3 @@ pub async fn capture_user(
 
     Ok(existing_user_response)
 }
-
-#[tauri::command]
-pub async fn fetch_tasks(token: String) -> Result<Value, String> {
-    let client = reqwest::Client::new();
-
-    let response = client
-        .get("https://jeff-ai-cf-be.mrboutte21.workers.dev/api/tasks")
-        .header("Authorization", format!("Bearer {}", token))
-        .send()
-        .await
-        .map_err(|e| {
-            log::error!("Failed to fetch tasks: {}", e);
-            e.to_string()
-        })?;
-
-    let json_value = response.json::<Value>().await.map_err(|e| {
-        log::error!("Failed to parse response as JSON: {}", e);
-        e.to_string()
-    })?;
-
-    log::info!("Raw API response: {:?}", json_value);
-    Ok(json_value)
-}

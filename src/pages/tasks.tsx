@@ -2,6 +2,7 @@ import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '@/lib/utils';
+import dayjs from 'dayjs';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
 import * as motion from 'motion/react-client';
 import { TaskEditor } from '@/components/task-editor';
@@ -13,9 +14,9 @@ import { Button } from '@/components/ui/button';
 
 interface Task {
   id: string;
-  day: string;
   content: string;
   completed: boolean;
+  assignedDate: string;
 }
 
 interface DaySection {
@@ -28,13 +29,29 @@ interface TranscriptionEvent {
   payload: string;
 }
 
+interface ApiTask {
+  id: string;
+  task: string;
+  done: boolean;
+  assignedDate: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function transformApiTask(apiTask: ApiTask): Task {
+  return {
+    id: apiTask.id,
+    content: apiTask.task,
+    completed: apiTask.done,
+    assignedDate: apiTask.assignedDate || new Date().toISOString()
+  };
+}
+
 export default function Tasks() {
   const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
 
   const [selectedDay, setSelectedDay] = useState<string>('MONDAY');
   const [tasks, setTasks] = useState<Task[]>([]);
-  // Keep track of the editor content for the new task
-  const [newTaskContent, setNewTaskContent] = useState<string>('');
   const [play] = useSound(recordSfx);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -44,6 +61,31 @@ export default function Tasks() {
   const [isHoveringDeleteArea, setIsHoveringDeleteArea] = useState(false);
 
   const shouldReduceMotion = useReducedMotion();
+
+  // Replace the static weekSections with dynamic generation
+  const [weekSections, setWeekSections] = useState<DaySection[]>([]);
+
+  useEffect(() => {
+    const generateWeekSections = () => {
+      const today = dayjs();
+      return ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].map(
+        (day, index) => {
+          const date = today
+            .startOf('week')
+            .add(index + 1, 'day')
+            .format('MMMM D, YYYY');
+          return {
+            day,
+            date,
+            temperature: '64°' // You can keep this or remove it
+          };
+        }
+      );
+    };
+    setWeekSections(generateWeekSections());
+  }, []);
+
+  console.log('tasks', tasks);
 
   // Animation configurations
   const containerAnimations = {
@@ -62,30 +104,26 @@ export default function Tasks() {
     }
   };
 
-  // Example: your day "sections" array
-  const weekSections: DaySection[] = [
-    { day: 'MONDAY', date: 'April, 14 2025', temperature: '64°' },
-    { day: 'TUESDAY' },
-    { day: 'WEDNESDAY' },
-    { day: 'THURSDAY' },
-    { day: 'FRIDAY' }
-  ];
-
   const fetchTasks = useCallback(async () => {
     if (!isAuthenticated || !getToken) {
       return;
     }
     const token = await getToken();
 
-    const response = await invoke('fetch_tasks', {
-      token
-    });
-    console.log('response', response);
-
-    // If your backend returns tasks with structure similar to:
-    //   [{ id: '1', day: 'MONDAY', content: 'Some task', completed: false }, ...]
-    // then just do:
-    // setTasks(response as Task[]);
+    try {
+      const response = await invoke<ApiTask[]>('fetch_tasks', { token });
+      console.log('response', response);
+      if (Array.isArray(response)) {
+        console.log('setting tasks');
+        const transformedTasks = response.map(transformApiTask);
+        console.log('transformedTasks', transformedTasks);
+        setTasks(transformedTasks);
+      } else {
+        console.error('Unexpected response format:', response);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
   }, [getToken, isAuthenticated]);
 
   useEffect(() => {
@@ -97,12 +135,14 @@ export default function Tasks() {
     const unlisten = listen(
       'transcription-complete',
       (event: TranscriptionEvent) => {
-        // Create a new task with the transcribed text
+        const selectedSection = weekSections.find((s) => s.day === selectedDay);
+        if (!selectedSection || !selectedSection.date) return;
+
         const newTask: Task = {
           id: crypto.randomUUID(),
-          day: selectedDay,
           content: event.payload,
-          completed: false
+          completed: false,
+          assignedDate: dayjs(selectedSection.date).toISOString()
         };
         setTasks((prev) => [...prev, newTask]);
       }
@@ -111,7 +151,7 @@ export default function Tasks() {
     return () => {
       unlisten.then((unlistenFn) => unlistenFn());
     };
-  }, [selectedDay]);
+  }, [selectedDay, weekSections]);
 
   // Handle recording
   const handleRecording = async () => {
@@ -134,32 +174,63 @@ export default function Tasks() {
     }
   };
 
-  // Handler to add a new task
-  const handleAddTask = () => {
-    if (!newTaskContent.trim()) return;
+  // Update handleAddTask to handle the API call
+  const handleAddTask = async (content: string) => {
+    if (!content.trim() || !isAuthenticated || !getToken) return;
 
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      day: selectedDay,
-      content: newTaskContent,
-      completed: false
-    };
+    try {
+      const token = await getToken();
+      console.log('selectedDay', selectedDay);
+      console.log('create_task content', content);
+      const assignedDate = dayjs(
+        weekSections.find((s) => s.day === selectedDay)?.date
+      ).toISOString();
 
-    setTasks((prev) => [...prev, newTask]);
-    setNewTaskContent(''); // clear the input after adding
+      const response = await invoke<ApiTask>('create_task', {
+        token,
+        content,
+        assignedDate
+      });
+
+      const newTask = transformApiTask(response);
+      setTasks((prev) => [...prev, newTask]);
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   };
 
-  // Handler to toggle "completed" state of a task
-  const handleToggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+  const handleToggleTask = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task || !isAuthenticated || !getToken) return;
+
+    console.log('all tasks', tasks);
+    console.log('task', task);
+
+    try {
+      const token = await getToken();
+      await invoke('update_task', {
+        token,
+        taskId: Number(id),
+        completed: !task.completed
+      });
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === id ? { ...task, completed: !task.completed } : task
+        )
+      );
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
   };
 
   // Filter tasks for the selected day
-  const tasksForSelectedDay = tasks.filter((t) => t.day === selectedDay);
+  const tasksForSelectedDay = tasks.filter((t) =>
+    dayjs(t.assignedDate).isSame(
+      weekSections.find((s) => s.day === selectedDay)?.date,
+      'day'
+    )
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent, day: string) => {
     // Only prevent default and handle the key press if the target is a day section
@@ -185,9 +256,18 @@ export default function Tasks() {
     }
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    setDeletingTaskId(null);
+  const handleDeleteTask = async (taskId: string) => {
+    if (!isAuthenticated || !getToken) return;
+
+    try {
+      const token = await getToken();
+      await invoke('delete_task', { token, taskId });
+      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    } finally {
+      setDeletingTaskId(null);
+    }
   };
 
   useEffect(() => {
@@ -370,14 +450,8 @@ export default function Tasks() {
                     transition={{ delay: 0.5 }}
                   >
                     <TaskEditor
-                      onSubmit={(content) => {
-                        const newTask: Task = {
-                          id: crypto.randomUUID(),
-                          day: selectedDay,
-                          content: content,
-                          completed: false
-                        };
-                        setTasks((prev) => [...prev, newTask]);
+                      onSubmit={async (content) => {
+                        await handleAddTask(content);
                       }}
                     />
                     <motion.div
@@ -388,21 +462,15 @@ export default function Tasks() {
                     >
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          // Trigger the same submit handler as the TaskEditor
+                        onClick={async () => {
                           const editor = document.querySelector(
                             '[contenteditable="true"]'
-                          );
-                          if (editor && editor.textContent?.trim()) {
-                            const newTask: Task = {
-                              id: crypto.randomUUID(),
-                              day: selectedDay,
-                              content: editor.textContent.trim(),
-                              completed: false
-                            };
-                            setTasks((prev) => [...prev, newTask]);
-                            editor.textContent = ''; // Clear the editor
-                          }
+                          ) as HTMLElement;
+
+                          if (!editor?.textContent?.trim()) return;
+
+                          await handleAddTask(editor.textContent.trim());
+                          editor.textContent = '';
                         }}
                         aria-label="Add task"
                       >

@@ -144,11 +144,14 @@ pub fn run() {
             get_all_refinements,
             refine_text,
             convert_to_markdown,
-            fetch_tasks,
             capture_user,
             set_user,
             start_recording,
             stop_recording,
+            fetch_tasks,
+            create_task,
+            update_task,
+            delete_task,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

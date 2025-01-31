@@ -1,4 +1,4 @@
-import { ListTodo, Home, Blend, Search, Settings } from 'lucide-react';
+import { ListTodo, PencilLine, Blend, Search, Settings } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
   Sidebar,
@@ -18,9 +18,9 @@ import packageJson from '../../package.json';
 // Menu items.
 const items = [
   {
-    title: 'Home',
+    title: 'Scratchpad',
     url: '/',
-    icon: Home
+    icon: PencilLine
   },
   {
     title: 'Refinements',
