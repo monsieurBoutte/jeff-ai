@@ -46,8 +46,8 @@ jobs:
           - host: macos-latest
             target: aarch64-apple-darwin
           # Windows
-          - host: windows-latest
-            target: x86_64-pc-windows-msvc
+          # - host: windows-latest
+          #   target: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
 
