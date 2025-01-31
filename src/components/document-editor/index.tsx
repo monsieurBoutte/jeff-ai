@@ -81,11 +81,15 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
         levels: [1, 2, 3]
       }),
       HardBreak,
-      Code,
+      Code.configure({
+        HTMLAttributes: {
+          class: 'p-2 rounded-md bg-gray-300'
+        }
+      }),
       CodeBlock.configure({
         languageClassPrefix: 'language-',
         HTMLAttributes: {
-          class: 'p-2 rounded-md'
+          class: 'p-2 rounded-md bg-gray-300'
         }
       }),
       BulletList,

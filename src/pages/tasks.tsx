@@ -13,10 +13,12 @@ import { MicrophoneToggle } from '@/components/microphone-toggle';
 import { Button } from '@/components/ui/button';
 
 interface Task {
-  id: string;
+  id: number;
   content: string;
   completed: boolean;
   assignedDate: string;
+  // This is used to preserve the animation when the optimistic task is mounted
+  __tempId?: number;
 }
 
 interface DaySection {
@@ -40,7 +42,7 @@ interface ApiTask {
 
 function transformApiTask(apiTask: ApiTask): Task {
   return {
-    id: apiTask.id,
+    id: Number(apiTask.id),
     content: apiTask.task,
     completed: apiTask.done,
     assignedDate: apiTask.assignedDate || new Date().toISOString()
@@ -55,7 +57,7 @@ export default function Tasks() {
   const [play] = useSound(recordSfx);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isHoveringDeleteArea, setIsHoveringDeleteArea] = useState(false);
@@ -77,15 +79,13 @@ export default function Tasks() {
           return {
             day,
             date,
-            temperature: '64°' // You can keep this or remove it
+            temperature: '' // todo: get temperature
           };
         }
       );
     };
     setWeekSections(generateWeekSections());
   }, []);
-
-  console.log('tasks', tasks);
 
   // Animation configurations
   const containerAnimations = {
@@ -112,11 +112,8 @@ export default function Tasks() {
 
     try {
       const response = await invoke<ApiTask[]>('fetch_tasks', { token });
-      console.log('response', response);
       if (Array.isArray(response)) {
-        console.log('setting tasks');
         const transformedTasks = response.map(transformApiTask);
-        console.log('transformedTasks', transformedTasks);
         setTasks(transformedTasks);
       } else {
         console.error('Unexpected response format:', response);
@@ -139,7 +136,7 @@ export default function Tasks() {
         if (!selectedSection || !selectedSection.date) return;
 
         const newTask: Task = {
-          id: crypto.randomUUID(),
+          id: Date.now(),
           content: event.payload,
           completed: false,
           assignedDate: dayjs(selectedSection.date).toISOString()
@@ -178,49 +175,68 @@ export default function Tasks() {
   const handleAddTask = async (content: string) => {
     if (!content.trim() || !isAuthenticated || !getToken) return;
 
+    // Create optimistic task with a temporary ID
+    const tempId = Date.now();
+    const optimisticTask: Task = {
+      id: tempId,
+      content,
+      completed: false,
+      assignedDate: dayjs(
+        weekSections.find((s) => s.day === selectedDay)?.date
+      ).toISOString(),
+      __tempId: tempId
+    };
+
+    // Optimistically update state
+    setTasks((prev) => [...prev, optimisticTask]);
+
     try {
       const token = await getToken();
-      console.log('selectedDay', selectedDay);
-      console.log('create_task content', content);
-      const assignedDate = dayjs(
-        weekSections.find((s) => s.day === selectedDay)?.date
-      ).toISOString();
-
       const response = await invoke<ApiTask>('create_task', {
         token,
         content,
-        assignedDate
+        assignedDate: optimisticTask.assignedDate
       });
 
-      const newTask = transformApiTask(response);
-      setTasks((prev) => [...prev, newTask]);
+      // Replace optimistic task with server response
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.__tempId === tempId ? transformApiTask(response) : task
+        )
+      );
     } catch (error) {
       console.error('Error creating task:', error);
+      // Rollback optimistic update if there's an error
+      setTasks((prev) => prev.filter((task) => task.__tempId !== tempId));
     }
   };
 
-  const handleToggleTask = async (id: string) => {
+  const handleToggleTask = async (id: number) => {
     const task = tasks.find((t) => t.id === id);
     if (!task || !isAuthenticated || !getToken) return;
 
-    console.log('all tasks', tasks);
-    console.log('task', task);
+    // Optimistically update the local state
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
 
     try {
       const token = await getToken();
       await invoke('update_task', {
         token,
-        taskId: Number(id),
+        taskId: id,
         completed: !task.completed
       });
-
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === id ? { ...task, completed: !task.completed } : task
-        )
-      );
     } catch (error) {
       console.error('Error updating task:', error);
+      // Rollback optimistic update if there's an error
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === id ? { ...task, completed: task.completed } : task
+        )
+      );
     }
   };
 
@@ -243,7 +259,7 @@ export default function Tasks() {
     }
   };
 
-  const handleLongPressStart = (taskId: string) => {
+  const handleLongPressStart = (taskId: number) => {
     longPressTimeout.current = setTimeout(() => {
       setDeletingTaskId(taskId);
     }, 500);
@@ -256,15 +272,23 @@ export default function Tasks() {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = async (taskId: number) => {
     if (!isAuthenticated || !getToken) return;
+
+    // Optimistically remove the task from state
+    setTasks((prev) => prev.filter((task) => task.id !== taskId));
 
     try {
       const token = await getToken();
-      await invoke('delete_task', { token, taskId });
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      const result = await invoke('delete_task', {
+        token,
+        taskId
+      });
+      console.log('Delete task result:', result);
     } catch (error) {
       console.error('Error deleting task:', error);
+      // Rollback optimistic update if there's an error
+      fetchTasks(); // Refetch tasks to restore the deleted one
     } finally {
       setDeletingTaskId(null);
     }
@@ -335,7 +359,7 @@ export default function Tasks() {
                     className="text-sm text-gray-500 dark:text-gray-400"
                     layout="position"
                   >
-                    {section.date} — {section.temperature}
+                    {section.date}
                   </motion.p>
                 )}
               </div>
@@ -358,6 +382,7 @@ export default function Tasks() {
                     className="space-y-2"
                     initial="hidden"
                     animate="visible"
+                    exit="hidden"
                     variants={{
                       visible: {
                         transition: {
@@ -366,7 +391,7 @@ export default function Tasks() {
                       }
                     }}
                   >
-                    {tasksForSelectedDay.map((task) => (
+                    {tasksForSelectedDay.map((task, index) => (
                       <motion.div
                         key={task.id}
                         className="flex items-start space-x-2"
@@ -378,7 +403,8 @@ export default function Tasks() {
                           duration: 0.3,
                           type: 'spring',
                           stiffness: 500,
-                          damping: 25
+                          damping: 25,
+                          delay: 0.1
                         }}
                       >
                         <div className="flex-shrink-0 pt-1">

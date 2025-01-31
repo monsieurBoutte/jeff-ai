@@ -12,3 +12,9 @@ AI Jeff is an open-source utility application that provides AI-powered assistanc
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Installation
+
+1. Clone the repository w/o the git history: `npx degit monsieurBoutte/jeff-ai your-project-name`
+2. Install dependencies: `pnpm install`
+3. Run the development server: `pnpm tauri dev`

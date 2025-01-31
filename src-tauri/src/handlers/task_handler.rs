@@ -1,6 +1,7 @@
 use crate::state::AppState;
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
+use reqwest::StatusCode;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Task {
@@ -161,7 +162,7 @@ pub async fn update_task(
 pub async fn delete_task(
     _state: tauri::State<'_, AppState>,
     token: String,
-    task_id: String,
+    task_id: u32,
 ) -> Result<Value, String> {
     log::info!("Deleting task: {}", task_id);
 
@@ -180,10 +181,15 @@ pub async fn delete_task(
             e.to_string()
         })?;
 
-    let json_value = response.json::<Value>().await.map_err(|e| {
-        log::error!("Failed to parse response as JSON: {}", e);
-        e.to_string()
-    })?;
-
-    Ok(json_value)
+    match response.status() {
+        StatusCode::NO_CONTENT => Ok(json!({ "success": true })),
+        StatusCode::NOT_FOUND => Err("Task not found".to_string()),
+        StatusCode::UNPROCESSABLE_ENTITY => Err("Invalid task ID".to_string()),
+        _ => {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            log::error!("Unexpected status code: {} - {}", status, error_text);
+            Err(format!("Unexpected error: {}", status))
+        }
+    }
 }

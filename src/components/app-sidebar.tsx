@@ -1,4 +1,4 @@
-import { ListTodo, PencilLine, Blend, Search, Settings } from 'lucide-react';
+import { ListTodo, PencilLine, Blend, Settings } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
   Sidebar,
@@ -31,11 +31,6 @@ const items = [
     title: 'Tasks',
     url: '/tasks',
     icon: ListTodo
-  },
-  {
-    title: 'Search',
-    url: '/search',
-    icon: Search
   },
   {
     title: 'Settings',
