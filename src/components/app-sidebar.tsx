@@ -1,11 +1,4 @@
-import {
-  ListTodo,
-  Home,
-  Blend,
-  Search,
-  Settings,
-  CassetteTape
-} from 'lucide-react';
+import { ListTodo, Home, Blend, Search, Settings } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
   Sidebar,
@@ -38,11 +31,6 @@ const items = [
     title: 'Tasks',
     url: '/tasks',
     icon: ListTodo
-  },
-  {
-    title: 'Recordings',
-    url: '/recordings',
-    icon: CassetteTape
   },
   {
     title: 'Search',
