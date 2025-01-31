@@ -149,10 +149,6 @@ pub fn run() {
             set_user,
             start_recording,
             stop_recording,
-            start_aggregate_recording,
-            stop_aggregate_recording,
-            start_output_recording,
-            stop_output_recording
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
