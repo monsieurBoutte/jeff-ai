@@ -3,14 +3,14 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
-import { AnimatePresence, useReducedMotion } from 'motion/react';
-import * as motion from 'motion/react-client';
+import { AnimatePresence } from 'motion/react';
 import { TaskEditor } from '@/components/task-editor';
 import useSound from 'use-sound';
 import recordSfx from '@/assets/cassette_tape_record.mp3';
 import { listen } from '@tauri-apps/api/event';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
 import { Button } from '@/components/ui/button';
+import * as motion from 'motion/react-client';
 
 interface Task {
   id: number;
@@ -19,6 +19,7 @@ interface Task {
   assignedDate: string;
   // This is used to preserve the animation when the optimistic task is mounted
   __tempId?: number;
+  isNewTask?: boolean;
 }
 
 interface DaySection {
@@ -62,8 +63,6 @@ export default function Tasks() {
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isHoveringDeleteArea, setIsHoveringDeleteArea] = useState(false);
 
-  const shouldReduceMotion = useReducedMotion();
-
   // Replace the static weekSections with dynamic generation
   const [weekSections, setWeekSections] = useState<DaySection[]>([]);
 
@@ -86,23 +85,6 @@ export default function Tasks() {
     };
     setWeekSections(generateWeekSections());
   }, []);
-
-  // Animation configurations
-  const containerAnimations = {
-    initial: shouldReduceMotion
-      ? { opacity: 0 }
-      : { opacity: 0, height: 0, scale: 0.95 },
-    animate: shouldReduceMotion
-      ? { opacity: 1 }
-      : { opacity: 1, height: 'auto', scale: 1 },
-    exit: shouldReduceMotion
-      ? { opacity: 0 }
-      : { opacity: 0, height: 0, scale: 0.95 },
-    transition: {
-      duration: shouldReduceMotion ? 0.1 : 0.3,
-      ease: 'easeInOut'
-    }
-  };
 
   const fetchTasks = useCallback(async () => {
     if (!isAuthenticated || !getToken) {
@@ -171,11 +153,10 @@ export default function Tasks() {
     }
   };
 
-  // Update handleAddTask to handle the API call
-  const handleAddTask = async (content: string) => {
+  // Update handleAddTask to use the isNewTask flag
+  const handleAddTask = async (content: string, isNewTask?: boolean) => {
     if (!content.trim() || !isAuthenticated || !getToken) return;
 
-    // Create optimistic task with a temporary ID
     const tempId = Date.now();
     const optimisticTask: Task = {
       id: tempId,
@@ -184,7 +165,8 @@ export default function Tasks() {
       assignedDate: dayjs(
         weekSections.find((s) => s.day === selectedDay)?.date
       ).toISOString(),
-      __tempId: tempId
+      __tempId: tempId,
+      isNewTask
     };
 
     // Optimistically update state
@@ -314,7 +296,7 @@ export default function Tasks() {
     <div className="max-w-2xl mx-auto">
       <div className="space-y-0">
         {weekSections.map((section, index) => (
-          <motion.div
+          <div
             key={section.day}
             className={cn(
               'p-4 rounded-none transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2',
@@ -336,35 +318,25 @@ export default function Tasks() {
             tabIndex={0}
             role="button"
             aria-pressed={selectedDay === section.day}
-            layout
-            transition={{ duration: 0.3 }}
           >
-            <motion.div
-              className="flex justify-between items-center"
-              layout="position"
-            >
+            <div className="flex justify-between items-center">
               <div className="space-y-1">
-                <motion.h2
+                <h2
                   className={cn(
                     'text-xl font-extrabold text-gray-700 dark:text-gray-300',
                     selectedDay === section.day &&
                       'text-orange-500 dark:text-orange-500'
                   )}
-                  layout="position"
                 >
                   {section.day}
-                </motion.h2>
+                </h2>
                 {section.date && (
-                  <motion.p
-                    className="text-sm text-gray-500 dark:text-gray-400"
-                    layout="position"
-                  >
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {section.date}
-                  </motion.p>
+                  </p>
                 )}
               </div>
 
-              {/* Add microphone button */}
               {selectedDay === section.day && (
                 <MicrophoneToggle
                   isActive={isRecording}
@@ -372,41 +344,24 @@ export default function Tasks() {
                   onClick={() => handleRecording()}
                 />
               )}
-            </motion.div>
+            </div>
 
             <AnimatePresence mode="wait">
               {selectedDay === section.day && (
-                <motion.div className="mt-4" {...containerAnimations} layout>
+                <motion.div
+                  className="mt-4"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{
+                    duration: 0.2,
+                    ease: 'easeInOut'
+                  }}
+                >
                   {/* Display tasks for this day */}
-                  <motion.div
-                    className="space-y-2"
-                    initial="hidden"
-                    animate="visible"
-                    exit="hidden"
-                    variants={{
-                      visible: {
-                        transition: {
-                          staggerChildren: 0.1
-                        }
-                      }
-                    }}
-                  >
-                    {tasksForSelectedDay.map((task, index) => (
-                      <motion.div
-                        key={task.id}
-                        className="flex items-start space-x-2"
-                        variants={{
-                          hidden: { opacity: 0, y: -20 },
-                          visible: { opacity: 1, y: 0 }
-                        }}
-                        transition={{
-                          duration: 0.3,
-                          type: 'spring',
-                          stiffness: 500,
-                          damping: 25,
-                          delay: 0.1
-                        }}
-                      >
+                  <div className="space-y-2">
+                    {tasksForSelectedDay.map((task) => (
+                      <div key={task.id} className="flex items-start space-x-2">
                         <div className="flex-shrink-0 pt-1">
                           <input
                             type="checkbox"
@@ -435,11 +390,7 @@ export default function Tasks() {
                           </div>
                           {deletingTaskId === task.id && (
                             <AnimatePresence>
-                              <motion.button
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                transition={{ duration: 0.2 }}
+                              <button
                                 className="absolute right-0 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 ml-2 bg-gray-50 dark:bg-gray-800 rounded-full p-1 shadow-md"
                                 onClick={() => handleDeleteTask(task.id)}
                                 onMouseEnter={() =>
@@ -460,32 +411,22 @@ export default function Tasks() {
                                 >
                                   <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
                                 </svg>
-                              </motion.button>
+                              </button>
                             </AnimatePresence>
                           )}
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
-                  </motion.div>
+                  </div>
 
                   {/* Task input area */}
-                  <motion.div
-                    className="mt-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
+                  <div className="mt-4">
                     <TaskEditor
                       onSubmit={async (content) => {
                         await handleAddTask(content);
                       }}
                     />
-                    <motion.div
-                      className="flex justify-end mt-2"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.6 }}
-                    >
+                    <div className="flex justify-end mt-2">
                       <Button
                         variant="outline"
                         onClick={async () => {
@@ -502,12 +443,12 @@ export default function Tasks() {
                       >
                         Add Task
                       </Button>
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>
