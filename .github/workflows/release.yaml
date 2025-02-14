@@ -96,6 +96,7 @@ jobs:
           if [[ "$CERT_INFO" =~ \"([^\"]+)\" ]]; then
             CERT_ID="${BASH_REMATCH[1]}"
             echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+            echo "Extracted CERT_ID: $CERT_ID"
           else
             echo "No valid certificate found"
             exit 1
@@ -112,6 +113,11 @@ jobs:
           jq --arg cert "$APPLE_SIGNING_IDENTITY" '.bundle.macOS.signingIdentity = $cert' \
             src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
           mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+
+          # New debug logs
+          echo "Using APPLE_SIGNING_IDENTITY from secrets: $APPLE_SIGNING_IDENTITY"
+          echo "Updated tauri.conf.json contents:"
+          jq .bundle.macOS src-tauri/tauri.conf.json
 
       - name: build tauri app
         shell: bash
