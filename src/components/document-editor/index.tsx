@@ -83,13 +83,15 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
       HardBreak,
       Code.configure({
         HTMLAttributes: {
-          class: 'p-2 rounded-md bg-gray-300'
+          class:
+            'p-2 rounded-md bg-gray-300 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
         }
       }),
       CodeBlock.configure({
         languageClassPrefix: 'language-',
         HTMLAttributes: {
-          class: 'p-2 rounded-md bg-gray-300'
+          class:
+            'p-2 rounded-md bg-gray-300 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
         }
       }),
       BulletList,
@@ -207,6 +209,9 @@ export const DocumentEditor = ({ content }: DocumentEditorProps) => {
 
     return hasNonParagraph;
   }, [editor]);
+
+  // @ts-expect-error For debugging purposes
+  window.editor = editor;
 
   return (
     <div>
