@@ -63,7 +63,6 @@ export default function Tasks() {
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isHoveringDeleteArea, setIsHoveringDeleteArea] = useState(false);
 
-  // Replace the static weekSections with dynamic generation
   const [weekSections, setWeekSections] = useState<DaySection[]>([]);
 
   useEffect(() => {
@@ -109,7 +108,6 @@ export default function Tasks() {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Add transcription listener
   useEffect(() => {
     const unlisten = listen(
       'transcription-complete',
@@ -132,7 +130,6 @@ export default function Tasks() {
     };
   }, [selectedDay, weekSections]);
 
-  // Handle recording
   const handleRecording = async () => {
     if (!isAuthenticated || !getToken) return;
     const token = await getToken();
@@ -153,7 +150,6 @@ export default function Tasks() {
     }
   };
 
-  // Update handleAddTask to use the isNewTask flag
   const handleAddTask = async (content: string, isNewTask?: boolean) => {
     if (!content.trim() || !isAuthenticated || !getToken) return;
 

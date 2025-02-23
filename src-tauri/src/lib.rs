@@ -150,6 +150,10 @@ pub fn run() {
             create_task,
             update_task,
             delete_task,
+            get_weather_location,
+            get_user_settings,
+            create_user_settings,
+            update_user_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import * as KindeAuth from '@kinde-oss/kinde-auth-react';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, Smile } from 'lucide-react';
 import { Route, Switch } from 'wouter';
 
 import { Button } from '@/components/ui/button';
@@ -49,25 +49,34 @@ function App() {
             <section className="flex-1 w-full p-2 overflow-auto">
               {!isAuthenticated ? (
                 <div className="w-full h-full">
-                  <div className="flex flex-col gap-2 max-w-sm mx-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => login()}
-                      className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
-                    >
-                      <LogIn />
-                      <span>Log In</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => register()}
-                      className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
-                    >
-                      <UserPlus />
-                      <span>Register</span>
-                    </Button>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Smile className="w-6 h-6 text-orange-500" />
+                      <h2 className="text-2xl font-bold">Hello friend</h2>
+                    </div>
+                    <p className="text-gray-500 dark:text-gray-400 mb-4">
+                      Please log in or register to continue
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => login()}
+                        className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
+                      >
+                        <LogIn />
+                        <span>Log In</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => register()}
+                        className="hover:bg-gray-100 dark:hover:bg-gray-800/25 text-gray-700 dark:text-gray-200"
+                      >
+                        <UserPlus />
+                        <span>Register</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -19,3 +19,20 @@ export interface Refinement {
   updatedAt: string;
   vector: number[];
 }
+
+interface LocalName {
+  ar?: string; // Arabic
+  be?: string; // Belarusian
+  bg?: string; // Bulgarian
+  en: string; // English
+  [key: string]: string | undefined; // Allow for other language codes
+}
+
+export interface WeatherLocationResult {
+  name: string;
+  lat: number;
+  lon: number;
+  country: string;
+  state: string;
+  local_names?: LocalName;
+}
