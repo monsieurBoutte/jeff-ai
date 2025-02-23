@@ -151,6 +151,7 @@ pub fn run() {
             update_task,
             delete_task,
             get_weather_location,
+            get_weather_forecast,
             get_user_settings,
             create_user_settings,
             update_user_settings,

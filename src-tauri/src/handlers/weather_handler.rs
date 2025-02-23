@@ -39,4 +39,37 @@ pub async fn get_weather_location(
     })?;
 
     Ok(json_value)
-} 
+}
+
+#[tauri::command]
+pub async fn get_weather_forecast(
+    token: String,
+    lat: f64,
+    lon: f64,
+) -> Result<Value, String> {
+    log::info!("Fetching weather forecast for lat: {}, lon: {}", lat, lon);
+
+    let url = format!(
+        "https://jeff-ai-cf-be.mrboutte21.workers.dev/api/weather?lat={}&lon={}",
+        lat, lon
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch weather forecast: {}", e);
+            e.to_string()
+        })?;
+
+    let json_value = response.json::<Value>().await.map_err(|e| {
+        log::error!("Failed to parse response as JSON: {}", e);
+        e.to_string()
+    })?;
+
+    Ok(json_value)
+}

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import {
   ArrowRight,
   Cloud,
@@ -44,6 +43,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { WeatherLocationResult } from '@/types/commands';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useToast } from '@/hooks/use-toast';
+import {
+  UserSettingsResponse,
+  useUserSettings
+} from '@/hooks/use-user-settings';
 
 // Add skeleton components at the top of the file after imports
 const AccountSkeleton = () => (
@@ -123,19 +126,6 @@ const UNIT_OPTIONS: Array<{ label: string; value: 'imperial' | 'metric' }> = [
 type PreferencesFormValues = {
   language: string; // This will store the language code
   units: 'imperial' | 'metric';
-};
-
-// Add this type for settings response
-type UserSettingsResponse = {
-  id: string;
-  userId: string;
-  lat: number | null;
-  lon: number | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  units: 'imperial' | 'metric';
-  language: string;
 };
 
 interface LocationSelectionProps {
@@ -223,8 +213,15 @@ function LocationSelection({
 }
 
 export default function Settings() {
-  const { logout, login, isAuthenticated, isLoading, getToken } =
-    KindeAuth.useKindeAuth();
+  const {
+    settings: existingSettings,
+    refetch: refetchSettings,
+    isAuthenticated,
+    isLoading,
+    getToken,
+    logout,
+    login
+  } = useUserSettings();
 
   const { toast } = useToast();
 
@@ -251,10 +248,6 @@ export default function Settings() {
   const [selectedLocation, setSelectedLocation] =
     useState<WeatherLocationResult | null>(null);
 
-  // Add state for existing settings
-  const [existingSettings, setExistingSettings] =
-    useState<UserSettingsResponse | null>(null);
-
   // Fetch existing settings on component mount
   useEffect(() => {
     const fetchSettings = async () => {
@@ -268,8 +261,6 @@ export default function Settings() {
         );
 
         console.log('Fetched settings:', settings);
-
-        setExistingSettings(settings);
 
         // Update form values with existing settings
         if (settings) {
@@ -353,10 +344,7 @@ export default function Settings() {
           settings: settingsData
         });
 
-        setExistingSettings((prev) => ({
-          ...prev!,
-          ...settingsData
-        }));
+        refetchSettings();
 
         toast({
           description: 'Location updated'
@@ -404,10 +392,7 @@ export default function Settings() {
         settings: settingsData
       });
 
-      setExistingSettings((prev) => ({
-        ...prev!,
-        ...settingsData
-      }));
+      refetchSettings();
 
       toast({
         description: 'Preferences updated'
@@ -451,10 +436,7 @@ export default function Settings() {
         settings: settingsData
       });
 
-      setExistingSettings((prev) => ({
-        ...prev!,
-        ...settingsData
-      }));
+      refetchSettings();
 
       toast({
         description: 'Location updated'
@@ -473,6 +455,28 @@ export default function Settings() {
       {/* Account Section */}
       {isLoading ? (
         <AccountSkeleton />
+      ) : isAuthenticated ? (
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <ArrowRight
+              className={cn(
+                'w-6 h-6',
+                isAuthenticated ? 'text-red-500' : 'text-orange-500'
+              )}
+            />
+            <h2 className="text-2xl font-bold">Account</h2>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Manage your account settings
+          </p>
+          <Button
+            variant="outline"
+            className="w-full hover:border-red-500"
+            onClick={() => logout()}
+          >
+            Logout
+          </Button>
+        </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
           <div className="flex items-center gap-3 mb-2">
@@ -487,30 +491,20 @@ export default function Settings() {
           <p className="text-gray-500 dark:text-gray-400 mb-4">
             Manage your account settings
           </p>
-          {isAuthenticated ? (
-            <Button
-              variant="outline"
-              className="w-full hover:border-red-500"
-              onClick={() => logout()}
-            >
-              Logout
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full hover:border-orange-500"
-              onClick={() => login()}
-            >
-              Login
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="w-full hover:border-orange-500"
+            onClick={() => login()}
+          >
+            Login
+          </Button>
         </div>
       )}
 
       {/* Preferences Section */}
       {isLoading ? (
         <PreferencesSkeleton />
-      ) : (
+      ) : isAuthenticated ? (
         <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
           <div className="flex items-center gap-3 mb-2">
             <Settings2 className="w-6 h-6 text-green-500" />
@@ -602,12 +596,29 @@ export default function Settings() {
             </form>
           </Form>
         </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <Settings2 className="w-6 h-6 text-green-500" />
+            <h2 className="text-2xl font-bold">Preferences</h2>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Set your app preferences
+          </p>
+          <Button
+            variant="outline"
+            className="w-full hover:border-orange-500"
+            onClick={() => login()}
+          >
+            Login to set preferences
+          </Button>
+        </div>
       )}
 
       {/* Weather Details Section */}
       {isLoading ? (
         <WeatherDetailsSkeleton />
-      ) : (
+      ) : isAuthenticated ? (
         <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
           <div className="flex items-center gap-3 mb-2">
             <Cloud className="w-6 h-6 text-blue-500" />
@@ -692,6 +703,23 @@ export default function Settings() {
               </Button>
             </form>
           </Form>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <Cloud className="w-6 h-6 text-blue-500" />
+            <h2 className="text-2xl font-bold">Weather Details</h2>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Set your default weather location
+          </p>
+          <Button
+            variant="outline"
+            className="w-full hover:border-orange-500"
+            onClick={() => login()}
+          >
+            Login to set weather location
+          </Button>
         </div>
       )}
 

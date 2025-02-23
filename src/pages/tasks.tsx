@@ -1,4 +1,3 @@
-import * as KindeAuth from '@kinde-oss/kinde-auth-react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '@/lib/utils';
@@ -11,47 +10,24 @@ import { listen } from '@tauri-apps/api/event';
 import { MicrophoneToggle } from '@/components/microphone-toggle';
 import { Button } from '@/components/ui/button';
 import * as motion from 'motion/react-client';
-
-interface Task {
-  id: number;
-  content: string;
-  completed: boolean;
-  assignedDate: string;
-  // This is used to preserve the animation when the optimistic task is mounted
-  __tempId?: number;
-  isNewTask?: boolean;
-}
-
-interface DaySection {
-  day: string;
-  date?: string;
-  temperature?: string;
-}
-
-interface TranscriptionEvent {
-  payload: string;
-}
-
-interface ApiTask {
-  id: string;
-  task: string;
-  done: boolean;
-  assignedDate: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-function transformApiTask(apiTask: ApiTask): Task {
-  return {
-    id: Number(apiTask.id),
-    content: apiTask.task,
-    completed: apiTask.done,
-    assignedDate: apiTask.assignedDate || new Date().toISOString()
-  };
-}
+import { useUserSettings } from '@/hooks/use-user-settings';
+import { WeatherResponse } from '@/types/commands';
+import {
+  Task,
+  ApiTask,
+  DaySection,
+  TranscriptionEvent,
+  transformApiTask
+} from '@/components/tasks/types';
+import { WeekSection } from '@/components/tasks/WeekSection';
+import { TaskList } from '@/components/tasks/TaskList';
 
 export default function Tasks() {
-  const { isAuthenticated, getToken } = KindeAuth.useKindeAuth();
+  const {
+    isAuthenticated,
+    getToken,
+    settings: existingSettings
+  } = useUserSettings();
 
   const [selectedDay, setSelectedDay] = useState<string>('MONDAY');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -62,42 +38,86 @@ export default function Tasks() {
   const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isHoveringDeleteArea, setIsHoveringDeleteArea] = useState(false);
-
   const [weekSections, setWeekSections] = useState<DaySection[]>([]);
 
-  useEffect(() => {
-    const generateWeekSections = () => {
-      const today = dayjs();
-      return ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].map(
-        (day, index) => {
-          const date = today
-            .startOf('week')
-            .add(index + 1, 'day')
-            .format('MMMM D, YYYY');
-          return {
-            day,
-            date,
-            temperature: '' // todo: get temperature
-          };
+  const fetchWeatherData = useCallback(
+    async (days: DaySection[]) => {
+      if (
+        !isAuthenticated ||
+        !getToken ||
+        !existingSettings?.lat ||
+        !existingSettings?.lon
+      ) {
+        return days;
+      }
+
+      try {
+        const token = await getToken();
+        const weatherData = await invoke<WeatherResponse>(
+          'get_weather_forecast',
+          {
+            token,
+            lat: existingSettings.lat,
+            lon: existingSettings.lon
+          }
+        );
+
+        if (weatherData?.data?.daily?.length > 0) {
+          return days.map((day) => {
+            const dayDate = dayjs(day.date).startOf('day');
+            const weatherDay = weatherData.data.daily.find((weatherDay) => {
+              const weatherDate = dayjs.unix(weatherDay.dt).startOf('day');
+              return weatherDate.isSame(dayDate, 'day');
+            });
+
+            if (weatherDay?.temp) {
+              return {
+                ...day,
+                temperature: `${Math.round(
+                  weatherDay.temp.min
+                )}° - ${Math.round(weatherDay.temp.max)}°`
+              };
+            }
+            return day;
+          });
         }
+      } catch (error) {
+        console.error('Error fetching weather data:', error);
+      }
+      return days;
+    },
+    [isAuthenticated, getToken, existingSettings]
+  );
+
+  useEffect(() => {
+    const generateWeekSections = async () => {
+      const today = dayjs();
+      const monday = today.startOf('week').add(1, 'day');
+
+      const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].map(
+        (day, index) => ({
+          day,
+          date: monday.add(index, 'day').format('MMMM D, YYYY'),
+          temperature: ''
+        })
       );
+
+      const sectionsWithWeather = await fetchWeatherData(days);
+      setWeekSections(sectionsWithWeather);
     };
-    setWeekSections(generateWeekSections());
-  }, []);
+
+    generateWeekSections();
+  }, [fetchWeatherData]);
 
   const fetchTasks = useCallback(async () => {
-    if (!isAuthenticated || !getToken) {
-      return;
-    }
-    const token = await getToken();
+    if (!isAuthenticated || !getToken) return;
 
     try {
+      const token = await getToken();
       const response = await invoke<ApiTask[]>('fetch_tasks', { token });
       if (Array.isArray(response)) {
         const transformedTasks = response.map(transformApiTask);
         setTasks(transformedTasks);
-      } else {
-        console.error('Unexpected response format:', response);
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -165,7 +185,6 @@ export default function Tasks() {
       isNewTask
     };
 
-    // Optimistically update state
     setTasks((prev) => [...prev, optimisticTask]);
 
     try {
@@ -176,7 +195,6 @@ export default function Tasks() {
         assignedDate: optimisticTask.assignedDate
       });
 
-      // Replace optimistic task with server response
       setTasks((prev) =>
         prev.map((task) =>
           task.__tempId === tempId ? transformApiTask(response) : task
@@ -184,7 +202,6 @@ export default function Tasks() {
       );
     } catch (error) {
       console.error('Error creating task:', error);
-      // Rollback optimistic update if there's an error
       setTasks((prev) => prev.filter((task) => task.__tempId !== tempId));
     }
   };
@@ -193,7 +210,6 @@ export default function Tasks() {
     const task = tasks.find((t) => t.id === id);
     if (!task || !isAuthenticated || !getToken) return;
 
-    // Optimistically update the local state
     setTasks((prev) =>
       prev.map((task) =>
         task.id === id ? { ...task, completed: !task.completed } : task
@@ -209,7 +225,6 @@ export default function Tasks() {
       });
     } catch (error) {
       console.error('Error updating task:', error);
-      // Rollback optimistic update if there's an error
       setTasks((prev) =>
         prev.map((task) =>
           task.id === id ? { ...task, completed: task.completed } : task
@@ -218,22 +233,19 @@ export default function Tasks() {
     }
   };
 
-  // Filter tasks for the selected day
-  const tasksForSelectedDay = tasks.filter((t) =>
-    dayjs(t.assignedDate).isSame(
-      weekSections.find((s) => s.day === selectedDay)?.date,
-      'day'
-    )
-  );
+  const handleDeleteTask = async (taskId: number) => {
+    if (!isAuthenticated || !getToken) return;
 
-  const handleKeyDown = (e: React.KeyboardEvent, day: string) => {
-    // Only prevent default and handle the key press if the target is a day section
-    const isDaySection =
-      (e.target as HTMLElement).getAttribute('role') === 'button';
+    setTasks((prev) => prev.filter((task) => task.id !== taskId));
 
-    if (isDaySection && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      setSelectedDay(day);
+    try {
+      const token = await getToken();
+      await invoke('delete_task', { token, taskId });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      fetchTasks();
+    } finally {
+      setDeletingTaskId(null);
     }
   };
 
@@ -250,31 +262,8 @@ export default function Tasks() {
     }
   };
 
-  const handleDeleteTask = async (taskId: number) => {
-    if (!isAuthenticated || !getToken) return;
-
-    // Optimistically remove the task from state
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-
-    try {
-      const token = await getToken();
-      const result = await invoke('delete_task', {
-        token,
-        taskId
-      });
-      console.log('Delete task result:', result);
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      // Rollback optimistic update if there's an error
-      fetchTasks(); // Refetch tasks to restore the deleted one
-    } finally {
-      setDeletingTaskId(null);
-    }
-  };
-
   useEffect(() => {
     if (deletingTaskId && !isHoveringDeleteArea) {
-      // Start 2s timer only if we're not hovering
       const timer = setTimeout(() => {
         setDeletingTaskId(null);
       }, 2000);
@@ -288,163 +277,38 @@ export default function Tasks() {
     }
   }, [deletingTaskId, isHoveringDeleteArea]);
 
+  const tasksForSelectedDay = tasks.filter((t) =>
+    dayjs(t.assignedDate).isSame(
+      weekSections.find((s) => s.day === selectedDay)?.date,
+      'day'
+    )
+  );
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="space-y-0">
         {weekSections.map((section, index) => (
-          <div
+          <WeekSection
             key={section.day}
-            className={cn(
-              'p-4 rounded-none transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2',
-              index === 0 && 'rounded-t-lg',
-              index === 4 && 'rounded-b-lg',
-              selectedDay === section.day
-                ? 'bg-gray-100 dark:bg-gray-800/50'
-                : cn(
-                    'hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer',
-                    index === 0 && 'bg-gray-50 dark:bg-gray-900/30',
-                    index === 1 && 'bg-gray-100 dark:bg-gray-900/40',
-                    index === 2 && 'bg-gray-200 dark:bg-gray-900/50',
-                    index === 3 && 'bg-gray-300 dark:bg-gray-900/60',
-                    index === 4 && 'bg-gray-400 dark:bg-gray-900/70'
-                  )
-            )}
-            onClick={() => setSelectedDay(section.day)}
-            onKeyDown={(e) => handleKeyDown(e, section.day)}
-            tabIndex={0}
-            role="button"
-            aria-pressed={selectedDay === section.day}
+            section={section}
+            index={index}
+            selectedDay={selectedDay}
+            isRecording={isRecording}
+            isProcessing={isProcessing}
+            onDaySelect={setSelectedDay}
+            onRecording={handleRecording}
+            onAddTask={handleAddTask}
           >
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <h2
-                  className={cn(
-                    'text-xl font-extrabold text-gray-700 dark:text-gray-300',
-                    selectedDay === section.day &&
-                      'text-orange-500 dark:text-orange-500'
-                  )}
-                >
-                  {section.day}
-                </h2>
-                {section.date && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {section.date}
-                  </p>
-                )}
-              </div>
-
-              {selectedDay === section.day && (
-                <MicrophoneToggle
-                  isActive={isRecording}
-                  isProcessing={isProcessing}
-                  onClick={() => handleRecording()}
-                />
-              )}
-            </div>
-
-            <AnimatePresence mode="wait">
-              {selectedDay === section.day && (
-                <motion.div
-                  className="mt-4"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{
-                    duration: 0.2,
-                    ease: 'easeInOut'
-                  }}
-                >
-                  {/* Display tasks for this day */}
-                  <div className="space-y-2">
-                    {tasksForSelectedDay.map((task) => (
-                      <div key={task.id} className="flex items-start space-x-2">
-                        <div className="flex-shrink-0 pt-1">
-                          <input
-                            type="checkbox"
-                            className="task-checkbox"
-                            checked={task.completed}
-                            onChange={() => handleToggleTask(task.id)}
-                          />
-                        </div>
-                        <div className="flex-grow relative">
-                          <div
-                            className={cn(
-                              'flex-grow text-gray-900 dark:text-gray-100 text-base select-none',
-                              task.completed &&
-                                'line-through text-gray-400 dark:text-gray-600 decoration-[#ea580c]',
-                              deletingTaskId === task.id &&
-                                'text-red-500 dark:text-red-500'
-                            )}
-                            onTouchStart={() => handleLongPressStart(task.id)}
-                            onTouchEnd={handleLongPressEnd}
-                            onMouseDown={() => handleLongPressStart(task.id)}
-                            onMouseUp={handleLongPressEnd}
-                            onMouseEnter={() => setIsHoveringDeleteArea(true)}
-                            onMouseLeave={() => setIsHoveringDeleteArea(false)}
-                          >
-                            {task.content}
-                          </div>
-                          {deletingTaskId === task.id && (
-                            <AnimatePresence>
-                              <button
-                                className="absolute right-0 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 ml-2 bg-gray-50 dark:bg-gray-800 rounded-full p-1 shadow-md"
-                                onClick={() => handleDeleteTask(task.id)}
-                                onMouseEnter={() =>
-                                  setIsHoveringDeleteArea(true)
-                                }
-                                onMouseLeave={() =>
-                                  setIsHoveringDeleteArea(false)
-                                }
-                                aria-label="Delete task"
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-5 w-5"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                >
-                                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
-                                </svg>
-                              </button>
-                            </AnimatePresence>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Task input area */}
-                  <div className="mt-4">
-                    <TaskEditor
-                      onSubmit={async (content) => {
-                        await handleAddTask(content);
-                      }}
-                    />
-                    <div className="flex justify-end mt-2">
-                      <Button
-                        variant="outline"
-                        onClick={async () => {
-                          const editor = document.querySelector(
-                            '[contenteditable="true"]'
-                          ) as HTMLElement;
-
-                          if (!editor?.textContent?.trim()) return;
-
-                          await handleAddTask(editor.textContent.trim());
-                          editor.textContent = '';
-                        }}
-                        aria-label="Add task"
-                      >
-                        Add Task
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            <TaskList
+              tasks={tasksForSelectedDay}
+              deletingTaskId={deletingTaskId}
+              onToggleTask={handleToggleTask}
+              onDeleteTask={handleDeleteTask}
+              onLongPressStart={handleLongPressStart}
+              onLongPressEnd={handleLongPressEnd}
+              onHoverDeleteArea={setIsHoveringDeleteArea}
+            />
+          </WeekSection>
         ))}
       </div>
     </div>
