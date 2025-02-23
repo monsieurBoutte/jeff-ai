@@ -507,97 +507,6 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Weather Details Section */}
-      {isLoading ? (
-        <WeatherDetailsSkeleton />
-      ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
-          <div className="flex items-center gap-3 mb-2">
-            <Cloud className="w-6 h-6 text-blue-500" />
-            <h2 className="text-2xl font-bold">Weather Details</h2>
-          </div>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            Set your default weather location
-          </p>
-
-          {/* Show selected location if exists */}
-          {selectedLocation && (
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-500" />
-                <span className="font-medium">Selected Location:</span>
-              </div>
-              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                {selectedLocation.name}, {selectedLocation.state},{' '}
-                {selectedLocation.country}
-              </div>
-              <div className="mt-0.5 text-xs text-gray-500">
-                {selectedLocation.lat.toFixed(4)},{' '}
-                {selectedLocation.lon.toFixed(4)}
-              </div>
-            </div>
-          )}
-
-          <Form {...weatherForm}>
-            <form
-              onSubmit={weatherForm.handleSubmit(onWeatherSubmit)}
-              className="space-y-4"
-            >
-              <FormField
-                control={weatherForm.control}
-                name="city"
-                rules={{ required: 'City is required' }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Orlando" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={weatherForm.control}
-                name="state"
-                rules={{ required: 'State is required' }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Florida" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={weatherForm.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Country code e.g., US" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button
-                type="submit"
-                variant="outline"
-                className="w-full hover:border-blue-500"
-              >
-                {selectedLocation
-                  ? 'Update Default Location'
-                  : 'Get Weather Coordinates'}
-              </Button>
-            </form>
-          </Form>
-        </div>
-      )}
-
       {/* Preferences Section */}
       {isLoading ? (
         <PreferencesSkeleton />
@@ -689,6 +598,97 @@ export default function Settings() {
                 className="w-full hover:border-green-500"
               >
                 Save Preferences
+              </Button>
+            </form>
+          </Form>
+        </div>
+      )}
+
+      {/* Weather Details Section */}
+      {isLoading ? (
+        <WeatherDetailsSkeleton />
+      ) : (
+        <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow">
+          <div className="flex items-center gap-3 mb-2">
+            <Cloud className="w-6 h-6 text-blue-500" />
+            <h2 className="text-2xl font-bold">Weather Details</h2>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Set your default weather location
+          </p>
+
+          {/* Show selected location if exists */}
+          {selectedLocation && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-500" />
+                <span className="font-medium">Selected Location:</span>
+              </div>
+              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {selectedLocation.name}, {selectedLocation.state},{' '}
+                {selectedLocation.country}
+              </div>
+              <div className="mt-0.5 text-xs text-gray-500">
+                {selectedLocation.lat.toFixed(4)},{' '}
+                {selectedLocation.lon.toFixed(4)}
+              </div>
+            </div>
+          )}
+
+          <Form {...weatherForm}>
+            <form
+              onSubmit={weatherForm.handleSubmit(onWeatherSubmit)}
+              className="space-y-4"
+            >
+              <FormField
+                control={weatherForm.control}
+                name="city"
+                rules={{ required: 'City is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Orlando" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={weatherForm.control}
+                name="state"
+                rules={{ required: 'State is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>State</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Florida" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={weatherForm.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Country code e.g., US" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                className="w-full hover:border-blue-500"
+              >
+                {selectedLocation
+                  ? 'Update Default Location'
+                  : 'Get Weather Coordinates'}
               </Button>
             </form>
           </Form>
